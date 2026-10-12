@@ -1,0 +1,19 @@
+{
+  "name": "flower-man",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Flower Man: flower marketplace and delivery platform (Bergamo pilot).",
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": "^22.13.0 || >=24.3.0",
+    "pnpm": ">=11.19.0"
+  },
+  "scripts": {
+    "build:core": "pnpm --recursive --filter \"./packages/*\" run build",
+    "typecheck": "pnpm run build:core && pnpm --recursive run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

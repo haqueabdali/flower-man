@@ -1,0 +1,19 @@
+{
+  "name": "@flower-man/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Flower Man REST API (NestJS). Placeholder until the API milestone.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@flower-man/contracts": "workspace:*",
+    "@flower-man/domain": "workspace:*",
+    "@flower-man/security": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
