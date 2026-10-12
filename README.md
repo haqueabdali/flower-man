@@ -3,7 +3,7 @@
 Flower marketplace and delivery platform, launching first in **Bergamo (BG), Italy**.
 It connects customers, flower shops, freelance flower sellers, couriers and platform administrators.
 
-> Status: **Milestone 2: PostgreSQL/PostGIS**. See [docs/milestones.md](docs/milestones.md).
+> Status: **Milestone 3: Migration System**. See [docs/milestones.md](docs/milestones.md).
 
 ## Repository layout
 
@@ -18,6 +18,7 @@ packages/
   domain/            Framework-independent domain types and rules
   security/          Shared security primitives (no secrets)
 infra/               Local infrastructure (compose.yaml: PostgreSQL 17 + PostGIS)
+  database/migrations/ Numbered SQL migrations (applied by pnpm db:migrate)
 scripts/             Repository tooling scripts
 docs/                Architecture decisions and milestone status
 ```
@@ -47,6 +48,10 @@ pnpm typecheck
 # Docker Desktop must be running
 pnpm db:up
 pnpm db:check
+pnpm db:migrate
+
+pnpm test               # unit tests (no database needed)
+pnpm test:integration   # integration tests (needs pnpm db:up)
 ```
 
 ## Root scripts
@@ -55,14 +60,18 @@ pnpm db:check
 |-------------------|---------------------------------------------------------------------|
 | `pnpm build:core` | Builds `packages/*` (contracts, domain, security) into `dist/`      |
 | `pnpm typecheck`  | Runs `build:core`, then typechecks every package and app            |
+| `pnpm test`       | Unit tests (Node's built-in test runner). No database needed        |
+| `pnpm test:integration` | Integration tests against PostgreSQL in throwaway databases (needs `pnpm db:up`) |
 | `pnpm db:up`      | Starts PostgreSQL/PostGIS (`infra/compose.yaml`) and waits until healthy |
 | `pnpm db:check`   | Prints database, user, PostgreSQL version, PostGIS available/installed, timezone, locale |
 | `pnpm db:status`  | Shows the database container state (including stopped)             |
 | `pnpm db:logs`    | Shows the last 100 database log lines                               |
 | `pnpm db:down`    | Stops the database. **Data is kept** in the `flower-man_db-data` volume |
+| `pnpm db:migrate` | Applies pending SQL migrations from `infra/database/migrations/`    |
+| `pnpm db:migrate:status` | Lists applied and pending migrations                         |
 
 Local database: `postgresql://flower_man:flower_man@127.0.0.1:55432/flower_man` (see `.env.example`).
-It is bound to `127.0.0.1` only. Never run `docker compose down -v` unless you intend to delete all local data.
+It is bound to `127.0.0.1` only. Migration rules: [infra/database/migrations/README.md](infra/database/migrations/README.md). Never run `docker compose down -v` unless you intend to delete all local data.
 
 More scripts are added only when the underlying command exists.
 

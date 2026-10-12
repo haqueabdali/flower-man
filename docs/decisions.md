@@ -78,3 +78,33 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   `pnpm db:check` shows `postgis_available` (in the image) and `postgis_installed` (created by migrations, from Milestone 3).
 - Compose credentials (`flower_man`/`flower_man`) are for local development only.
   Production uses `DATABASE_URL` and `DATABASE_SSL=true` from the environment.
+
+## ADR-007: Plain-SQL migrations with a small in-house runner (Milestone 3)
+
+- No ORM and no migration framework. Numbered SQL files in `infra/database/migrations/` (`NNNN_snake_case.sql`,
+  contiguous from 0001) are applied by `apps/api/src/database/migrate.ts` (`pnpm db:migrate`).
+  The runner lives in the API so production deploys run it from the same build.
+- History table `public.schema_migrations` stores version, name, SHA-256 checksum (of LF-normalized content),
+  applied_at, execution_ms and applied_by.
+- Applied migrations are immutable. The runner refuses to run if an applied file was edited, renamed or deleted,
+  or if a new file is numbered below the latest applied one.
+- Each migration runs in its own transaction together with its history row. `BEGIN;`/`COMMIT`/`ROLLBACK` inside files are rejected.
+  A session advisory lock serializes concurrent runners. `lock_timeout = 30s`.
+- Not supported yet: statements that cannot run in a transaction (e.g. `CREATE INDEX CONCURRENTLY`).
+  Add an explicit opt-out with its own ADR when first needed.
+- `DATABASE_SSL` is the only TLS switch: `true` means TLS with certificate verification (`rejectUnauthorized: true`).
+  Any `ssl*` parameter in `DATABASE_URL` is rejected, because the pg driver lets it silently override the ssl option
+  (e.g. `?sslmode=disable` turns TLS off). `NODE_ENV=production` requires `DATABASE_SSL=true`.
+  A custom CA (some managed providers) will be added as a separate variable when production is configured.
+- Connection strings are never logged. Only `host:port/database` is printed.
+
+## ADR-008: Tests use Node's built-in test runner (Milestone 3)
+
+- `node:test` + `node:assert/strict`, with tests written in TypeScript and compiled by `tsc` (`tsconfig.test.json` → `dist-test/`).
+  There are no extra dependencies, it is ESM-native, and `tsc` emits decorator metadata, so NestJS tests work the same way later.
+- `*.test.ts` files are unit tests (`pnpm test`, no external services).
+  `*.integration.ts` files are integration tests (`pnpm test:integration`, need `pnpm db:up`).
+  Integration tests create a throwaway database per test (`flower_man_it_*`, UTF8 + builtin C.UTF-8) and drop it. They never touch the dev database.
+- Shared packages typecheck tests with Node types (`tsconfig.json`), but build with `"types": []` (`tsconfig.build.json`),
+  so shipped package code cannot use Node-only APIs.
+- The mobile and web apps may adopt their framework's test tooling (jest-expo, etc.) in their own milestones.
