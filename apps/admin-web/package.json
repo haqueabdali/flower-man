@@ -1,0 +1,16 @@
+{
+  "name": "@flower-man/admin-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Flower Man admin web app (Next.js). Placeholder until the admin milestone.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@flower-man/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

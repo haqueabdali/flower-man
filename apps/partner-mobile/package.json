@@ -1,0 +1,15 @@
+{
+  "name": "@flower-man/partner-mobile",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Flower Man partner app for shops, freelance sellers and couriers (Expo). Placeholder until the partner app milestone.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@flower-man/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

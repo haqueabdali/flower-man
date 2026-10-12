@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Shipped code must stay platform-neutral (it runs in Expo and Next.js too): no Node.js types.
+    "types": []
+  },
+  "exclude": ["src/**/*.test.ts"]
+}

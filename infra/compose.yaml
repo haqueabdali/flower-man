@@ -1,0 +1,52 @@
+# Local development infrastructure only. Never use these credentials outside your machine.
+#
+#   pnpm db:up      start PostgreSQL/PostGIS and wait until it is healthy
+#   pnpm db:check   print database, user, PostgreSQL and PostGIS versions
+#   pnpm db:down    stop the container (data is kept in the named volume)
+name: flower-man
+
+services:
+  db:
+    # PostgreSQL 17 + PostGIS 3.6 (official postgis/postgis image, Alpine variant).
+    # The Debian tag 17-3.5 is not used: it is still on PostgreSQL 17.5 / Debian 11.
+    image: postgis/postgis:17-3.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: flower_man
+      POSTGRES_USER: flower_man
+      POSTGRES_PASSWORD: flower_man
+      # UTF-8 with PostgreSQL 17's built-in C.UTF-8 collation: identical on every OS
+      # (Alpine/musl, Debian/glibc) and stable across OS upgrades. Production must create
+      # its database with the same builtin provider (see docs/decisions.md ADR-006).
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8"
+      TZ: UTC
+    ports:
+      # Bound to localhost only: the database is never reachable from your network.
+      # Host port 55432 avoids clashing with a native PostgreSQL on 5432.
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    configs:
+      # Replaces the image's init script, which would install postgis, postgis_topology,
+      # the tiger geocoder and fuzzystrmatch, and change the database search_path.
+      # The database starts clean, exactly like production: migrations create every extension.
+      - source: postgis-init
+        target: /docker-entrypoint-initdb.d/10_postgis.sh
+    shm_size: 256mb
+    healthcheck:
+      # TCP check (-h 127.0.0.1) so the container only turns healthy once the real
+      # server is up, not the socket-only temporary server used during first-time init.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U flower_man -d flower_man"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+      start_interval: 1s
+
+configs:
+  postgis-init:
+    content: |
+      # Intentionally empty: extensions are created by migrations (pnpm db:migrate).
+
+volumes:
+  db-data:
