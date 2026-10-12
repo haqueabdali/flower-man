@@ -5,17 +5,21 @@ packages:
 # Single source of truth for versions shared across the workspace.
 # Reference with "catalog:" in package.json.
 catalog:
-  # Pinned to 6.0.x: the Expo SDK 57 and Nest CLI 12 templates ship TypeScript ~6.0.
+  # Pinned to 6.0.x: Expo SDK 57's template pins typescript ~6.0.3 and Nest CLI 12 depends on ~6.0.2.
   # TypeScript 7 (native port) is deferred until the whole toolchain supports it.
   typescript: ~6.0.3
   "@types/node": ~24.19.2
 
-# pnpm 11 defaults kept explicit so they survive future default changes.
-# Wait 24h before resolving newly published versions (supply-chain protection).
+# Supply-chain protection: do not resolve versions published less than 24h ago.
+# Strict: a younger version fails the install (ERR_PNPM_NO_MATURE_MATCHING_VERSION),
+# or prompts in an interactive terminal. After review, add it to minimumReleaseAgeExclude.
 minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+
 # Fail on dependency build scripts that are not reviewed and listed in allowBuilds.
 strictDepBuilds: true
 
 # Packages allowed (true) or denied (false) to run install scripts.
-# Add entries only after reviewing the package. Never approve blindly.
-allowBuilds: {}
+# Add entries only after reviewing the package. Never approve blindly. Example:
+#   esbuild: true
+allowBuilds:

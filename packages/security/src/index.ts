@@ -7,17 +7,24 @@
 export const REDACTED = '[REDACTED]';
 
 const SENSITIVE_KEY_FRAGMENTS = [
-  'password',
-  'passwd',
+  'pass', // password, passwd, passphrase
+  'pwd',
   'secret',
   'token',
   'apikey',
-  'authorization',
+  'auth', // authorization, auth header
+  'credential',
   'cookie',
+  'session',
+  'jwt',
   'privatekey',
   'cardnumber',
   'cvc',
+  'cvv',
+  'securitycode',
   'iban',
+  'connectionstring',
+  'databaseurl',
 ] as const;
 
 /**

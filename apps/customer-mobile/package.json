@@ -2,7 +2,6 @@
   "name": "@flower-man/customer-mobile",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
   "description": "Flower Man customer app (Expo). Placeholder until the customer app milestone.",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"

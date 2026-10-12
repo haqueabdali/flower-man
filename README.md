@@ -35,6 +35,9 @@ Use **pnpm only**. Do not run `npm install` inside the workspace.
 ## Getting started (Windows, Git Bash)
 
 ```bash
+# First time only (the folder must be empty or not exist):
+git clone -b claude/awesome-hopper-td9ytw https://github.com/haqueabdali/flower-man.git /e/flower-man
+
 cd /e/flower-man
 pnpm install
 pnpm typecheck

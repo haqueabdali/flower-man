@@ -7,10 +7,10 @@
   "packageManager": "pnpm@11.19.0",
   "engines": {
     "node": "^22.13.0 || >=24.3.0",
-    "pnpm": ">=11.19.0"
+    "pnpm": "^11.19.0"
   },
   "scripts": {
-    "build:core": "pnpm --recursive --filter \"./packages/*\" run build",
+    "build:core": "pnpm --recursive --filter \"./packages/*\" --fail-if-no-match run build",
     "typecheck": "pnpm run build:core && pnpm --recursive run typecheck"
   },
   "devDependencies": {

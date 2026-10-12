@@ -41,8 +41,9 @@ apps/partner-mobile/ios/
 google-services.json
 GoogleService-Info.plist
 
-# Local uploads (development storage for delivery proof etc.)
-storage/
+# Local uploads (development storage for delivery proof etc.). Anchored so src/storage/ code is not ignored.
+/storage/
+/apps/*/storage/
 
 # Logs and OS/editor files
 *.log
