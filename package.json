@@ -11,7 +11,12 @@
   },
   "scripts": {
     "build:core": "pnpm --recursive --filter \"./packages/*\" --fail-if-no-match run build",
-    "typecheck": "pnpm run build:core && pnpm --recursive run typecheck"
+    "typecheck": "pnpm run build:core && pnpm --recursive run typecheck",
+    "db:up": "docker compose -f infra/compose.yaml up -d --wait",
+    "db:check": "docker compose -f infra/compose.yaml exec -T db psql -U flower_man -d flower_man -X -v ON_ERROR_STOP=1 -c \"SELECT current_database() AS database, current_user AS db_user, current_setting('server_version') AS postgres, postgis_lib_version() AS postgis, current_setting('TimeZone') AS timezone, datlocprovider AS locale_provider, datlocale AS locale FROM pg_database WHERE datname = current_database();\"",
+    "db:status": "docker compose -f infra/compose.yaml ps",
+    "db:logs": "docker compose -f infra/compose.yaml logs --tail 100 db",
+    "db:down": "docker compose -f infra/compose.yaml down"
   },
   "devDependencies": {
     "typescript": "catalog:"

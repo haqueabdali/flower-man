@@ -53,3 +53,21 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - 55432 is inside Windows' dynamic port range (49152-65535). Hyper-V/WSL2 may reserve blocks of it.
   If Docker reports `Ports are not available`, check `netsh interface ipv4 show excludedportrange protocol=tcp`,
   then move the host port (for example 15432) with a new ADR. The container port stays 5432.
+
+## ADR-006: Local PostgreSQL 17 + PostGIS via Docker Compose (Milestone 2)
+
+- Image: `postgis/postgis:17-3.6-alpine` (PostgreSQL 17.11, PostGIS 3.6.4 when adopted).
+  The Debian tag `17-3.5` was rejected: it still ships PostgreSQL 17.5 on Debian 11 (end of life).
+- Compose project `flower-man`, service `db`, named volume `flower-man_db-data`. `pnpm db:down` never removes the volume.
+- The port is published on `127.0.0.1:55432` only, so the database is not reachable from the local network.
+- The health check uses TCP (`pg_isready -h 127.0.0.1`), so `docker compose up --wait` only returns once
+  first-time initialization has finished.
+- Encoding UTF8 with PostgreSQL 17's built-in `C.UTF-8` collation (`--locale-provider=builtin`).
+  It sorts and compares identically on Alpine, Debian and managed hosting, and is unaffected by OS library upgrades.
+  Where Italian linguistic ordering is needed, queries use an explicit ICU collation.
+- Server timezone UTC. Timestamps are stored as `timestamptz`; conversion to Europe/Rome happens at the edges.
+- The image auto-creates `postgis`, `postgis_topology` and the tiger geocoder in the dev database.
+  The application must not rely on that: migrations create the extensions they need (`CREATE EXTENSION IF NOT EXISTS postgis`),
+  so a clean managed database gets the same schema.
+- Compose credentials (`flower_man`/`flower_man`) are for local development only.
+  Production uses `DATABASE_URL` and `DATABASE_SSL=true` from the environment.

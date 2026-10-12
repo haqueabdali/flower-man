@@ -3,7 +3,7 @@
 Flower marketplace and delivery platform, launching first in **Bergamo (BG), Italy**.
 It connects customers, flower shops, freelance flower sellers, couriers and platform administrators.
 
-> Status: **Milestone 1: Monorepo Foundation**. See [docs/milestones.md](docs/milestones.md).
+> Status: **Milestone 2: PostgreSQL/PostGIS**. See [docs/milestones.md](docs/milestones.md).
 
 ## Repository layout
 
@@ -17,6 +17,7 @@ packages/
   contracts/         API contracts shared by every app
   domain/            Framework-independent domain types and rules
   security/          Shared security primitives (no secrets)
+infra/               Local infrastructure (compose.yaml: PostgreSQL 17 + PostGIS)
 scripts/             Repository tooling scripts
 docs/                Architecture decisions and milestone status
 ```
@@ -39,8 +40,13 @@ Use **pnpm only**. Do not run `npm install` inside the workspace.
 git clone -b claude/awesome-hopper-td9ytw https://github.com/haqueabdali/flower-man.git /e/flower-man
 
 cd /e/flower-man
+cp .env.example .env
 pnpm install
 pnpm typecheck
+
+# Docker Desktop must be running
+pnpm db:up
+pnpm db:check
 ```
 
 ## Root scripts
@@ -49,5 +55,13 @@ pnpm typecheck
 |-------------------|---------------------------------------------------------------------|
 | `pnpm build:core` | Builds `packages/*` (contracts, domain, security) into `dist/`      |
 | `pnpm typecheck`  | Runs `build:core`, then typechecks every package and app            |
+| `pnpm db:up`      | Starts PostgreSQL/PostGIS (`infra/compose.yaml`) and waits until healthy |
+| `pnpm db:check`   | Prints database, user, PostgreSQL/PostGIS versions, timezone, locale |
+| `pnpm db:status`  | Shows the database container state                                  |
+| `pnpm db:logs`    | Shows the last 100 database log lines                               |
+| `pnpm db:down`    | Stops the database. **Data is kept** in the `flower-man_db-data` volume |
+
+Local database: `postgresql://flower_man:flower_man@127.0.0.1:55432/flower_man` (see `.env.example`).
+It is bound to `127.0.0.1` only. Never run `docker compose down -v` unless you intend to delete all local data.
 
 More scripts are added only when the underlying command exists.
