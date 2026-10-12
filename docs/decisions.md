@@ -88,15 +88,24 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   applied_at, execution_ms and applied_by.
 - Applied migrations are immutable. The runner refuses to run if an applied file was edited, renamed or deleted,
   or if a new file is numbered below the latest applied one.
-- Each migration runs in its own transaction together with its history row. `BEGIN;`/`COMMIT`/`ROLLBACK` inside files are rejected.
+- Each migration runs in its own transaction together with its history row. Transaction-control statements in files
+  (`BEGIN;`, `COMMIT`, `ROLLBACK`, `ABORT`, `END TRANSACTION`, ...) are rejected before anything runs. After each file,
+  the runner also checks that the transaction ID is unchanged (this catches `END;`, `COMMIT AND CHAIN`, ...), and refuses
+  to record the migration otherwise.
   A session advisory lock serializes concurrent runners. `lock_timeout = 30s`.
+- `RESET ALL` + `RESET ROLE` run before each file, so session settings never leak between migrations
+  (one run and several runs produce the same schema). `search_path` is deliberately not pinned to `public`:
+  some hosts install PostGIS in an `extensions` schema on the role's search path.
+- Migration files must be valid UTF-8 (rejected otherwise, so Italian text is never silently corrupted).
 - Not supported yet: statements that cannot run in a transaction (e.g. `CREATE INDEX CONCURRENTLY`).
   Add an explicit opt-out with its own ADR when first needed.
 - `DATABASE_SSL` is the only TLS switch: `true` means TLS with certificate verification (`rejectUnauthorized: true`).
   Any `ssl*` parameter in `DATABASE_URL` is rejected, because the pg driver lets it silently override the ssl option
   (e.g. `?sslmode=disable` turns TLS off). `NODE_ENV=production` requires `DATABASE_SSL=true`.
   A custom CA (some managed providers) will be added as a separate variable when production is configured.
-- Connection strings are never logged. Only `host:port/database` is printed.
+- Connection strings are never logged. Only `host:port/database`, as resolved by the pg driver, is printed.
+  URLs with unencoded special characters in the password (which would move part of it into the host or path)
+  or invalid percent-encoding are rejected.
 
 ## ADR-008: Tests use Node's built-in test runner (Milestone 3)
 

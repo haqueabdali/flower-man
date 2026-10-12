@@ -30,7 +30,7 @@ describe('parseMigrationFile', () => {
   it('gives identical checksums for LF, CRLF and BOM-prefixed content', () => {
     const lf = parseMigrationFile('0001_a.sql', 'SELECT 1;\nSELECT 2;\n');
     const crlf = parseMigrationFile('0001_a.sql', 'SELECT 1;\r\nSELECT 2;\r\n');
-    const bom = parseMigrationFile('0001_a.sql', '﻿SELECT 1;\nSELECT 2;\n');
+    const bom = parseMigrationFile('0001_a.sql', '\uFEFFSELECT 1;\nSELECT 2;\n');
     assert.equal(crlf.checksum, lf.checksum);
     assert.equal(bom.checksum, lf.checksum);
     assert.equal(crlf.sql, lf.sql);
@@ -54,12 +54,43 @@ describe('parseMigrationFile', () => {
     assert.throws(() => parseMigrationFile('0001_init.sql', ' \n\t\n'), isMigrationError(/is empty/));
   });
 
-  for (const statement of ['BEGIN;', 'begin ;', 'START TRANSACTION;', 'COMMIT;', '  commit', 'ROLLBACK;']) {
+  const transactionControl = [
+    'BEGIN;',
+    'begin ;',
+    'BEGIN WORK;',
+    'BEGIN TRANSACTION;',
+    'BEGIN TRANSACTION',
+    'START TRANSACTION;',
+    'START TRANSACTION ISOLATION LEVEL SERIALIZABLE;',
+    'COMMIT;',
+    '  commit',
+    'COMMIT WORK;',
+    'ROLLBACK;',
+    'ABORT;',
+    'END TRANSACTION;',
+    'END WORK;',
+    'SELECT 1; COMMIT;',
+    'CREATE TABLE t (id int); ABORT; CREATE TABLE u (id int);',
+  ];
+  for (const statement of transactionControl) {
     it(`rejects transaction control "${statement.trim()}"`, () => {
       assert.throws(
         () => parseMigrationFile('0001_init.sql', `CREATE TABLE t (id int);\n${statement}\n`),
         isMigrationError(/transaction-control statement/),
       );
+    });
+  }
+
+  const allowed: ReadonlyArray<[string, string]> = [
+    ['a comment mentioning rollback', '-- Rollback plan: drop the table.\nCREATE TABLE t (id int);'],
+    ['a block comment line starting with commit', '/*\nCommit message style notes\n*/\nCREATE TABLE t (id int);'],
+    ['a column named commit', 'CREATE TABLE t (\n  commit text,\n  id int\n);'],
+    ['ROLLBACK TO SAVEPOINT', 'SAVEPOINT s;\nROLLBACK TO SAVEPOINT s;'],
+    ['a BEGIN ATOMIC function body', 'CREATE FUNCTION one() RETURNS int LANGUAGE sql\nBEGIN ATOMIC\n  SELECT 1;\nEND;'],
+  ];
+  for (const [label, sql] of allowed) {
+    it(`accepts ${label}`, () => {
+      assert.doesNotThrow(() => parseMigrationFile('0001_init.sql', sql));
     });
   }
 
@@ -125,6 +156,30 @@ describe('readMigrationFiles', () => {
     const files = await readMigrationFiles(directory);
     assert.deepEqual(files.map((f) => f.filename), ['0001_first.sql', '0002_second.sql']);
     assert.equal(files[1]?.sql, 'SELECT 2;\n');
+  });
+
+  it('rejects files that are not valid UTF-8', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'flower-man-migrations-'));
+    try {
+      // "Città" saved as Windows-1252 (0xE0), not UTF-8.
+      const latin1 = Buffer.concat([Buffer.from("INSERT INTO towns VALUES ('Citt"), Buffer.from([0xe0]), Buffer.from("');\n")]);
+      await writeFile(join(dir, '0001_towns.sql'), latin1);
+      await assert.rejects(readMigrationFiles(dir), isMigrationError(/0001_towns.sql is not valid UTF-8/));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('strips a UTF-8 BOM when reading files', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'flower-man-migrations-'));
+    try {
+      await writeFile(join(dir, '0001_bom.sql'), Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('SELECT 1;\n')]));
+      const [file] = await readMigrationFiles(dir);
+      assert.equal(file?.sql, 'SELECT 1;\n');
+      assert.equal(file?.checksum, computeChecksum('SELECT 1;\n'));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('rejects unexpected files', async () => {

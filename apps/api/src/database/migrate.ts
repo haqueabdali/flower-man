@@ -37,22 +37,27 @@ async function main(): Promise<void> {
   const files = await readMigrationFiles(directory);
   const config = loadDatabaseConfig(process.env);
 
-  console.log(`Database:   ${config.description} (TLS ${config.ssl ? 'on' : 'off'})`);
-  console.log(`Migrations: ${directory} (${files.length} files)`);
-
   const client = new pg.Client({
     connectionString: config.connectionString,
     ssl: config.ssl,
     application_name: 'flower-man-migrate',
     connectionTimeoutMillis: 10_000,
   });
+  // A dropped connection also rejects the pending query, which the catch below reports.
+  // Without a listener, pg's 'error' event would crash the process and hide the reason.
+  client.on('error', () => undefined);
+
+  // Print the target pg actually resolved (URL parameters and PG* variables can change it).
+  const target = `${client.host}:${client.port}/${client.database ?? ''}`;
+  console.log(`Database:   ${target} (TLS ${config.ssl ? 'on' : 'off'})`);
+  console.log(`Migrations: ${directory} (${files.length} files)`);
 
   try {
     await client.connect();
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     throw new MigrationError(
-      `Cannot connect to ${config.description}: ${(error as Error).message}${code ? ` (${code})` : ''}. ` +
+      `Cannot connect to ${target}: ${(error as Error).message}${code ? ` (${code})` : ''}. ` +
         'Is the database running? Try: pnpm db:up',
     );
   }

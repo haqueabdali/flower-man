@@ -43,11 +43,15 @@ describe('loadDatabaseConfig', () => {
     ['sslrootcert in URL', { DATABASE_URL: `${LOCAL_URL}?sslrootcert=x`, DATABASE_SSL: 'true' }, /Remove "sslrootcert"/],
     ['missing DATABASE_SSL', { DATABASE_URL: LOCAL_URL }, /DATABASE_SSL must be set/],
     ['invalid DATABASE_SSL', { DATABASE_URL: LOCAL_URL, DATABASE_SSL: 'yes' }, /DATABASE_SSL must be set/],
-    [
-      'production without TLS',
-      { DATABASE_URL: LOCAL_URL, DATABASE_SSL: 'false', NODE_ENV: 'production' },
-      /must be "true" when NODE_ENV=production/,
-    ],
+    ['invalid percent-encoding in the database name', { DATABASE_URL: 'postgresql://u:p@h:5432/db%zz', DATABASE_SSL: 'false' }, /invalid percent-encoding/],
+    ['invalid percent-encoding in the password', { DATABASE_URL: 'postgresql://u:p%ff@h:5432/db', DATABASE_SSL: 'false' }, /invalid percent-encoding/],
+    ...['production', 'Production', ' production ', 'PRODUCTION'].map(
+      (nodeEnv): [string, NodeJS.ProcessEnv, RegExp] => [
+        `NODE_ENV="${nodeEnv}" without TLS`,
+        { DATABASE_URL: LOCAL_URL, DATABASE_SSL: 'false', NODE_ENV: nodeEnv },
+        /must be "true" when NODE_ENV=production/,
+      ],
+    ),
   ];
 
   for (const [label, env, message] of invalid) {
@@ -59,6 +63,27 @@ describe('loadDatabaseConfig', () => {
       });
     });
   }
+
+  for (const password of ['/Kq9xS3cr3t', '2024/S3cr3t', 'Xq7@Lm2/Zp9', 'abc?def', 'abc#def']) {
+    it(`rejects an unencoded special character in password "${password}" without echoing it`, () => {
+      assert.throws(
+        () => loadDatabaseConfig({ DATABASE_URL: `postgresql://flower_man:${password}@db.example.com:5432/app`, DATABASE_SSL: 'true' }),
+        (error: unknown) => {
+          assert.ok(error instanceof ConfigError);
+          assert.ok(!error.message.includes(password), error.message);
+          return true;
+        },
+      );
+    });
+  }
+
+  it('accepts a percent-encoded password', () => {
+    const config = loadDatabaseConfig({
+      DATABASE_URL: `postgresql://flower_man:${encodeURIComponent('Xq7@Lm2/Zp9?#%')}@db.example.com:5432/app`,
+      DATABASE_SSL: 'true',
+    });
+    assert.equal(config.description, 'db.example.com:5432/app');
+  });
 
   it('does not echo the password in error messages', () => {
     assert.throws(
