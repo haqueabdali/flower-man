@@ -60,14 +60,21 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   The Debian tag `17-3.5` was rejected: it still ships PostgreSQL 17.5 on Debian 11 (end of life).
 - Compose project `flower-man`, service `db`, named volume `flower-man_db-data`. `pnpm db:down` never removes the volume.
 - The port is published on `127.0.0.1:55432` only, so the database is not reachable from the local network.
+  If Hyper-V/WinNAT has reserved a range containing 55432, the preferred remedy is to reserve 55432 for us
+  (README → Troubleshooting) rather than moving the port as ADR-005 suggests. Moving it remains the last resort.
 - The health check uses TCP (`pg_isready -h 127.0.0.1`), so `docker compose up --wait` only returns once
   first-time initialization has finished.
 - Encoding UTF8 with PostgreSQL 17's built-in `C.UTF-8` collation (`--locale-provider=builtin`).
-  It sorts and compares identically on Alpine, Debian and managed hosting, and is unaffected by OS library upgrades.
+  It sorts and compares identically on any OS and is unaffected by OS library upgrades, but only in databases created with it.
+  Production must create its database the same way:
+  `CREATE DATABASE ... TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER builtin BUILTIN_LOCALE 'C.UTF-8'`.
+  A pre-created libc/ICU database changes `ORDER BY` results and `LIKE 'prefix%'` index use.
   Where Italian linguistic ordering is needed, queries use an explicit ICU collation.
 - Server timezone UTC. Timestamps are stored as `timestamptz`; conversion to Europe/Rome happens at the edges.
-- The image auto-creates `postgis`, `postgis_topology` and the tiger geocoder in the dev database.
-  The application must not rely on that: migrations create the extensions they need (`CREATE EXTENSION IF NOT EXISTS postgis`),
-  so a clean managed database gets the same schema.
+- The image's init script (`/docker-entrypoint-initdb.d/10_postgis.sh`) is replaced by an empty one via a Compose `config`.
+  Otherwise it would install postgis, postgis_topology, the tiger geocoder and fuzzystrmatch, create `template_postgis`
+  and change the database `search_path`. The dev database therefore starts clean, like a new production database,
+  and migrations create every extension they need (`CREATE EXTENSION IF NOT EXISTS postgis`).
+  `pnpm db:check` shows `postgis_available` (in the image) and `postgis_installed` (created by migrations, from Milestone 3).
 - Compose credentials (`flower_man`/`flower_man`) are for local development only.
   Production uses `DATABASE_URL` and `DATABASE_SSL=true` from the environment.

@@ -56,8 +56,8 @@ pnpm db:check
 | `pnpm build:core` | Builds `packages/*` (contracts, domain, security) into `dist/`      |
 | `pnpm typecheck`  | Runs `build:core`, then typechecks every package and app            |
 | `pnpm db:up`      | Starts PostgreSQL/PostGIS (`infra/compose.yaml`) and waits until healthy |
-| `pnpm db:check`   | Prints database, user, PostgreSQL/PostGIS versions, timezone, locale |
-| `pnpm db:status`  | Shows the database container state                                  |
+| `pnpm db:check`   | Prints database, user, PostgreSQL version, PostGIS available/installed, timezone, locale |
+| `pnpm db:status`  | Shows the database container state (including stopped)             |
 | `pnpm db:logs`    | Shows the last 100 database log lines                               |
 | `pnpm db:down`    | Stops the database. **Data is kept** in the `flower-man_db-data` volume |
 
@@ -65,3 +65,23 @@ Local database: `postgresql://flower_man:flower_man@127.0.0.1:55432/flower_man` 
 It is bound to `127.0.0.1` only. Never run `docker compose down -v` unless you intend to delete all local data.
 
 More scripts are added only when the underlying command exists.
+
+## Troubleshooting
+
+### `pnpm db:up` reports `Ports are not available` for 55432 (Windows)
+
+Hyper-V/WinNAT may have reserved a port range containing 55432. Check:
+
+```bash
+netsh interface ipv4 show excludedportrange protocol=tcp
+```
+
+If a listed range contains 55432, reserve the port for Flower Man:
+1. Quit Docker Desktop, then run `wsl --shutdown`.
+2. In an **Administrator** terminal, run:
+   ```bat
+   net stop winnat
+   netsh int ipv4 add excludedportrange protocol=tcp startport=55432 numberofports=1
+   net start winnat
+   ```
+3. Start Docker Desktop and run `pnpm db:up` again. 55432 now shows with `*` (administered) in the list above.
