@@ -6,7 +6,10 @@
     "types": ["node"],
     "rootDir": "src",
     "outDir": "dist",
-    "sourceMap": true
+    "sourceMap": true,
+    // NestJS dependency injection relies on legacy decorators + emitted type metadata.
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": ["src"]
 }

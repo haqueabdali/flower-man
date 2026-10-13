@@ -117,3 +117,25 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - Shared packages typecheck tests with Node types (`tsconfig.json`), but build with `"types": []` (`tsconfig.build.json`),
   so shipped package code cannot use Node-only APIs.
 - The mobile and web apps may adopt their framework's test tooling (jest-expo, etc.) in their own milestones.
+
+## ADR-009: API foundation (Milestone 4a)
+
+- NestJS 12 on Express 5 (`@nestjs/platform-express`), ESM, legacy decorators + `emitDecoratorMetadata`, compiled by `tsc`.
+  There is no Nest CLI: `pnpm dev:api` runs `tsc --watch` + `node --watch` (`apps/api/scripts/dev.mjs`).
+- `createApp(config)` (`app.factory.ts`) builds the app for both `main.ts` and the integration tests, so tests exercise the real setup.
+- Configuration is validated before Nest starts (`loadAppConfig`). An invalid config prints one line and exits 1.
+  Variables: `NODE_ENV`, `HOST` (127.0.0.1), `PORT` (4000), `CORS_ORIGINS`, `TRUST_PROXY`, `APP_VERSION`, `DATABASE_URL`, `DATABASE_SSL`.
+- All routes are under `/api/v1` (contracts: `API_GLOBAL_PREFIX` / `API_VERSION`).
+- Security baseline:
+  - `helmet` default headers; `x-powered-by` disabled;
+  - JSON body limit 100 kB;
+  - CORS only for exact origins in `CORS_ORIGINS`. No wildcard, https-only in production, no credentials (bearer tokens);
+  - `trust proxy` is off unless `TRUST_PROXY` gives the hop count.
+- Every response carries `X-Request-Id`. A client value is accepted only if it matches `[A-Za-z0-9._-]{8,128}`.
+  The access log has method, path (no query string), status, duration and request ID. Bodies are never logged.
+- Errors always use the `ApiErrorResponse` shape `{ error: { code, message, requestId } }` from contracts.
+  5xx messages are generic. Details and stacks go to the server log only.
+- Database access uses one `pg.Pool` per process (`PG_POOL`): max 10 connections, `statement_timeout` 15s,
+  `idle_in_transaction_session_timeout` 60s, client `query_timeout` 20s. The pool is closed on shutdown (SIGTERM/SIGINT).
+- `GET /api/v1/health` returns 200 `{status:"ok"}` or 503 `{status:"down"}` with `checks.database`, plus `Cache-Control: no-store`.
+- Input validation (shared schemas in `@flower-man/contracts`) arrives with the first endpoint that accepts input (Milestone 4b).

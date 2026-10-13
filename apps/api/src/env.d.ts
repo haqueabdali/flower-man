@@ -3,6 +3,11 @@ declare global {
   namespace NodeJS {
     interface ProcessEnv {
       readonly NODE_ENV?: string;
+      readonly HOST?: string;
+      readonly PORT?: string;
+      readonly CORS_ORIGINS?: string;
+      readonly TRUST_PROXY?: string;
+      readonly APP_VERSION?: string;
       readonly DATABASE_URL?: string;
       readonly DATABASE_SSL?: string;
     }
