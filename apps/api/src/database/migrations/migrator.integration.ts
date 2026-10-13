@@ -16,7 +16,8 @@ import { readMigrationFiles } from './migration-files.js';
 import { getMigrationStatus, migrate } from './migrator.js';
 
 const config: DatabaseConfig = loadDatabaseConfig(process.env);
-const REPOSITORY_MIGRATIONS = resolve(process.cwd(), '../../infra/database/migrations');
+// dist-test/database/migrations/ → repository root is five levels up.
+const REPOSITORY_MIGRATIONS = resolve(import.meta.dirname, '../../../../../infra/database/migrations');
 const silent = { info: (): void => undefined };
 
 function connect(database?: string): pg.Client {
@@ -24,7 +25,12 @@ function connect(database?: string): pg.Client {
   if (database) {
     url.pathname = `/${database}`;
   }
-  return new pg.Client({ connectionString: url.toString(), ssl: config.ssl, application_name: 'flower-man-test' });
+  return new pg.Client({
+    connectionString: url.toString(),
+    ssl: config.ssl,
+    application_name: 'flower-man-test',
+    connectionTimeoutMillis: 10_000,
+  });
 }
 
 /** Creates a throwaway database configured like production (UTF8, builtin C.UTF-8), runs `body`, drops it. */
@@ -146,6 +152,50 @@ describe('migrator (PostgreSQL)', () => {
         );
       },
     );
+  });
+
+  // Forms the static check does not catch: the runtime transaction check must stop them.
+  for (const [label, sql] of [
+    ['ROLLBACK AND CHAIN', 'CREATE TABLE lost_table (id int);\nROLLBACK AND CHAIN;\nCREATE TABLE kept_table (id int);\n'],
+    ['COMMIT AND CHAIN', 'CREATE TABLE early_table (id int);\nCOMMIT AND CHAIN;\nCREATE TABLE late_table (id int);\n'],
+    ['a bare END;', 'CREATE TABLE early_table (id int);\nEND;\n'],
+  ] as const) {
+    it(`never records a migration that ended the runner's transaction (${label})`, async () => {
+      await withMigrationDir({ '0001_escape.sql': sql, '0002_next.sql': 'CREATE TABLE next_table (id int);\n' }, async (dir) => {
+        const files = await readMigrationFiles(dir);
+        await withDatabase((database) =>
+          withClient(database, async (client) => {
+            await assert.rejects(migrate(client, files, silent), /0001_escape\.sql ended the runner's transaction/);
+            assert.equal(await tableExists(client, 'next_table'), false);
+            assert.deepEqual(await historyVersions(client), []);
+          }),
+        );
+      });
+    });
+  }
+
+  it('does not leak session settings between migrations (one run == two runs)', async () => {
+    const migrations = {
+      '0001_schema.sql': 'CREATE SCHEMA app;\nSET search_path = app, public;\nCREATE TABLE app.shops (id int);\n',
+      '0002_orders.sql': 'CREATE TABLE orders (id int);\n',
+    };
+    await withMigrationDir(migrations, async (dir) => {
+      const files = await readMigrationFiles(dir);
+      await withDatabase((database) =>
+        withClient(database, async (client) => {
+          await migrate(client, files, silent);
+          assert.equal(await tableExists(client, 'public.orders'), true);
+          assert.equal(await tableExists(client, 'app.orders'), false);
+        }),
+      );
+      await withDatabase((database) =>
+        withClient(database, async (client) => {
+          await migrate(client, files.slice(0, 1), silent);
+          await migrate(client, files, silent);
+          assert.equal(await tableExists(client, 'public.orders'), true);
+        }),
+      );
+    });
   });
 
   it('refuses to run when an applied migration was edited', async () => {

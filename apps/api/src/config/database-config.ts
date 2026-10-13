@@ -32,10 +32,23 @@ export function loadDatabaseConfig(env: NodeJS.ProcessEnv): DatabaseConfig {
   if (!PROTOCOLS.has(url.protocol)) {
     throw new ConfigError('DATABASE_URL must start with postgresql:// or postgres://.');
   }
+  if ((url.pathname + url.search + url.hash).includes('@')) {
+    // An unencoded '/', '?' or '#' in the password moves part of it into the path or query.
+    throw new ConfigError(
+      'DATABASE_URL looks malformed: percent-encode special characters (@ : / ? # %) in the user name and password.',
+    );
+  }
   if (!url.hostname) {
     throw new ConfigError('DATABASE_URL has no host.');
   }
-  const database = decodeURIComponent(url.pathname.replace(/^\//, ''));
+  let database: string;
+  try {
+    database = decodeURIComponent(url.pathname.replace(/^\//, ''));
+    decodeURIComponent(url.username);
+    decodeURIComponent(url.password);
+  } catch {
+    throw new ConfigError('DATABASE_URL has invalid percent-encoding.');
+  }
   if (!database) {
     throw new ConfigError('DATABASE_URL has no database name.');
   }
@@ -53,7 +66,7 @@ export function loadDatabaseConfig(env: NodeJS.ProcessEnv): DatabaseConfig {
   }
   const sslEnabled = rawSsl === 'true';
 
-  if (env.NODE_ENV === 'production' && !sslEnabled) {
+  if (env.NODE_ENV?.trim().toLowerCase() === 'production' && !sslEnabled) {
     throw new ConfigError('DATABASE_SSL must be "true" when NODE_ENV=production.');
   }
 

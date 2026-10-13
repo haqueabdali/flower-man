@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { MigrationError } from './migration-error.js';
 import { parseMigrationFile } from './migration-files.js';
-import { type AppliedMigration, planMigrations } from './migrator.js';
+import { type AppliedMigration, errorLine, planMigrations } from './migrator.js';
 
 const files = [
   parseMigrationFile('0001_extensions.sql', 'CREATE EXTENSION IF NOT EXISTS postgis;'),
@@ -66,5 +66,24 @@ describe('planMigrations', () => {
 
   it('fails when a pending migration is older than the latest applied one', () => {
     assert.throws(() => planMigrations(files, [appliedRow(0), appliedRow(2)]), isMigrationError(/0002_users.sql is older than/));
+  });
+});
+
+describe('errorLine', () => {
+  it('maps a character position to a line number', () => {
+    const sql = '-- comment\nCREATE TABLE ok (id int);\nSELEC 1;\n';
+    assert.equal(errorLine(sql, String(sql.indexOf('SELEC') + 1)), 3);
+  });
+
+  it('counts characters outside the BMP (emoji) as one, like PostgreSQL', () => {
+    const sql = `-- ${'🌸'.repeat(30)} bouquet\nCREATE TABLE ok (id int);\nSELEC 1;\n`;
+    const position = Array.from(sql).indexOf('S', Array.from(sql).indexOf('\n', 40)) + 1;
+    assert.equal(errorLine(sql, String(position)), 3);
+  });
+
+  it('returns undefined without a usable position', () => {
+    assert.equal(errorLine('SELECT 1;', undefined), undefined);
+    assert.equal(errorLine('SELECT 1;', 'abc'), undefined);
+    assert.equal(errorLine('SELECT 1;', '0'), undefined);
   });
 });

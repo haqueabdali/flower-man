@@ -3,13 +3,13 @@
 Flower marketplace and delivery platform, launching first in **Bergamo (BG), Italy**.
 It connects customers, flower shops, freelance flower sellers, couriers and platform administrators.
 
-> Status: **Milestone 3: Migration System**. See [docs/milestones.md](docs/milestones.md).
+> Status: **Milestone 4a: API Foundation**. See [docs/milestones.md](docs/milestones.md).
 
 ## Repository layout
 
 ```text
 apps/
-  api/               REST API (NestJS). Placeholder for now
+  api/               REST API (NestJS 12) + database migration CLI
   admin-web/         Admin web app (Next.js). Placeholder for now
   customer-mobile/   Customer app (Expo). Placeholder for now
   partner-mobile/    Partner app for shops, freelance sellers and couriers (Expo). Placeholder for now
@@ -52,7 +52,12 @@ pnpm db:migrate
 
 pnpm test               # unit tests (no database needed)
 pnpm test:integration   # integration tests (needs pnpm db:up)
+
+pnpm dev:api            # API on http://127.0.0.1:4000/api/v1 (reloads on change)
+curl http://127.0.0.1:4000/api/v1/health
 ```
+
+If you already have a `.env` from an earlier milestone, copy the new API lines from `.env.example` into it.
 
 ## Root scripts
 
@@ -60,6 +65,7 @@ pnpm test:integration   # integration tests (needs pnpm db:up)
 |-------------------|---------------------------------------------------------------------|
 | `pnpm build:core` | Builds `packages/*` (contracts, domain, security) into `dist/`      |
 | `pnpm typecheck`  | Runs `build:core`, then typechecks every package and app            |
+| `pnpm dev:api`    | Builds and runs the API with automatic reload (`tsc --watch` + `node --watch`) |
 | `pnpm test`       | Unit tests (Node's built-in test runner). No database needed        |
 | `pnpm test:integration` | Integration tests against PostgreSQL in throwaway databases (needs `pnpm db:up`) |
 | `pnpm db:up`      | Starts PostgreSQL/PostGIS (`infra/compose.yaml`) and waits until healthy |

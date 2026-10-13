@@ -88,15 +88,24 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   applied_at, execution_ms and applied_by.
 - Applied migrations are immutable. The runner refuses to run if an applied file was edited, renamed or deleted,
   or if a new file is numbered below the latest applied one.
-- Each migration runs in its own transaction together with its history row. `BEGIN;`/`COMMIT`/`ROLLBACK` inside files are rejected.
+- Each migration runs in its own transaction together with its history row. Transaction-control statements in files
+  (`BEGIN;`, `COMMIT`, `ROLLBACK`, `ABORT`, `END TRANSACTION`, ...) are rejected before anything runs. After each file,
+  the runner also checks that the transaction ID is unchanged (this catches `END;`, `COMMIT AND CHAIN`, ...), and refuses
+  to record the migration otherwise.
   A session advisory lock serializes concurrent runners. `lock_timeout = 30s`.
+- `RESET ALL` + `RESET ROLE` run before each file, so session settings never leak between migrations
+  (one run and several runs produce the same schema). `search_path` is deliberately not pinned to `public`:
+  some hosts install PostGIS in an `extensions` schema on the role's search path.
+- Migration files must be valid UTF-8 (rejected otherwise, so Italian text is never silently corrupted).
 - Not supported yet: statements that cannot run in a transaction (e.g. `CREATE INDEX CONCURRENTLY`).
   Add an explicit opt-out with its own ADR when first needed.
 - `DATABASE_SSL` is the only TLS switch: `true` means TLS with certificate verification (`rejectUnauthorized: true`).
   Any `ssl*` parameter in `DATABASE_URL` is rejected, because the pg driver lets it silently override the ssl option
   (e.g. `?sslmode=disable` turns TLS off). `NODE_ENV=production` requires `DATABASE_SSL=true`.
   A custom CA (some managed providers) will be added as a separate variable when production is configured.
-- Connection strings are never logged. Only `host:port/database` is printed.
+- Connection strings are never logged. Only `host:port/database`, as resolved by the pg driver, is printed.
+  URLs with unencoded special characters in the password (which would move part of it into the host or path)
+  or invalid percent-encoding are rejected.
 
 ## ADR-008: Tests use Node's built-in test runner (Milestone 3)
 
@@ -108,3 +117,25 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - Shared packages typecheck tests with Node types (`tsconfig.json`), but build with `"types": []` (`tsconfig.build.json`),
   so shipped package code cannot use Node-only APIs.
 - The mobile and web apps may adopt their framework's test tooling (jest-expo, etc.) in their own milestones.
+
+## ADR-009: API foundation (Milestone 4a)
+
+- NestJS 12 on Express 5 (`@nestjs/platform-express`), ESM, legacy decorators + `emitDecoratorMetadata`, compiled by `tsc`.
+  There is no Nest CLI: `pnpm dev:api` runs `tsc --watch` + `node --watch` (`apps/api/scripts/dev.mjs`).
+- `createApp(config)` (`app.factory.ts`) builds the app for both `main.ts` and the integration tests, so tests exercise the real setup.
+- Configuration is validated before Nest starts (`loadAppConfig`). An invalid config prints one line and exits 1.
+  Variables: `NODE_ENV`, `HOST` (127.0.0.1), `PORT` (4000), `CORS_ORIGINS`, `TRUST_PROXY`, `APP_VERSION`, `DATABASE_URL`, `DATABASE_SSL`.
+- All routes are under `/api/v1` (contracts: `API_GLOBAL_PREFIX` / `API_VERSION`).
+- Security baseline:
+  - `helmet` default headers; `x-powered-by` disabled;
+  - JSON body limit 100 kB;
+  - CORS only for exact origins in `CORS_ORIGINS`. No wildcard, https-only in production, no credentials (bearer tokens);
+  - `trust proxy` is off unless `TRUST_PROXY` gives the hop count.
+- Every response carries `X-Request-Id`. A client value is accepted only if it matches `[A-Za-z0-9._-]{8,128}`.
+  The access log has method, path (no query string), status, duration and request ID. Bodies are never logged.
+- Errors always use the `ApiErrorResponse` shape `{ error: { code, message, requestId } }` from contracts.
+  5xx messages are generic. Details and stacks go to the server log only.
+- Database access uses one `pg.Pool` per process (`PG_POOL`): max 10 connections, `statement_timeout` 15s,
+  `idle_in_transaction_session_timeout` 60s, client `query_timeout` 20s. The pool is closed on shutdown (SIGTERM/SIGINT).
+- `GET /api/v1/health` returns 200 `{status:"ok"}` or 503 `{status:"down"}` with `checks.database`, plus `Cache-Control: no-store`.
+- Input validation (shared schemas in `@flower-man/contracts`) arrives with the first endpoint that accepts input (Milestone 4b).

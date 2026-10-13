@@ -1,31 +1,34 @@
-// Placeholder entry point. Replaced by the NestJS bootstrap in a later milestone.
-// It exists so the workspace links and typechecks against every shared package.
-import { API_GLOBAL_PREFIX, API_VERSION, type HealthResponse } from '@flower-man/contracts';
-import { assertNever } from '@flower-man/domain';
-import { isSensitiveKey } from '@flower-man/security';
+// Flower Man API entry point.
+import 'reflect-metadata';
 
-const health: HealthResponse = {
-  status: 'ok',
-  service: 'flower-man-api',
-  version: '0.0.0',
-  time: new Date().toISOString(),
-};
+import { Logger } from '@nestjs/common';
 
-function describe(status: HealthResponse['status']): string {
-  switch (status) {
-    case 'ok':
-      return 'healthy';
-    case 'degraded':
-      return 'degraded';
-    case 'down':
-      return 'down';
-    default:
-      return assertNever(status);
+import { API_PREFIX, createApp } from './app.factory.js';
+import { type AppConfig, loadAppConfig } from './config/app-config.js';
+import { ConfigError } from './config/config-error.js';
+
+async function main(): Promise<void> {
+  let config: AppConfig;
+  try {
+    config = loadAppConfig(process.env);
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      console.error(`✖ Invalid configuration: ${error.message}`);
+      process.exitCode = 1;
+      return;
+    }
+    throw error;
   }
+
+  const app = await createApp(config);
+  await app.listen(config.port, config.host);
+  Logger.log(
+    `Flower Man API (${config.nodeEnv}) on http://${config.host}:${config.port}/${API_PREFIX}`,
+    'Bootstrap',
+  );
 }
 
-console.log(
-  `/${API_GLOBAL_PREFIX}/${API_VERSION}`,
-  describe(health.status),
-  isSensitiveKey('password'),
-);
+main().catch((error: unknown) => {
+  console.error('✖ API failed to start:', error);
+  process.exitCode = 1;
+});

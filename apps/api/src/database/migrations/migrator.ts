@@ -122,13 +122,26 @@ export async function getMigrationStatus(
   return planMigrations(files, await readHistory(client));
 }
 
-/** Converts a pg error position (1-based character offset) to a line number in the migration. */
-function lineOf(sql: string, position: string | undefined): number | undefined {
+/**
+ * Converts a PostgreSQL error position (1-based, counted in characters/code points)
+ * to a line number in the migration.
+ */
+export function errorLine(sql: string, position: string | undefined): number | undefined {
   const offset = Number(position);
   if (!Number.isInteger(offset) || offset < 1) {
     return undefined;
   }
-  return sql.slice(0, offset - 1).split('\n').length;
+  return Array.from(sql).slice(0, offset - 1).join('').split('\n').length;
+}
+
+const describePgError = (error: unknown): string => {
+  const pgError = error as Partial<pg.DatabaseError> & Error;
+  return `${pgError.message}${pgError.code ? ` (SQLSTATE ${pgError.code})` : ''}`;
+};
+
+async function currentTransactionId(client: pg.ClientBase): Promise<string | undefined> {
+  const result = await client.query<{ id: string }>('SELECT pg_current_xact_id()::text AS id');
+  return result.rows[0]?.id;
 }
 
 async function applyOne(client: pg.ClientBase, file: MigrationFile): Promise<number> {
@@ -136,22 +149,36 @@ async function applyOne(client: pg.ClientBase, file: MigrationFile): Promise<num
   await client.query('BEGIN');
   try {
     await client.query(`SET LOCAL lock_timeout = '${LOCK_TIMEOUT}'`);
+    const transactionId = await currentTransactionId(client);
+
     try {
       await client.query(file.sql);
     } catch (error) {
-      const pgError = error as Partial<pg.DatabaseError> & Error;
-      const line = lineOf(file.sql, pgError.position);
+      const line = errorLine(file.sql, (error as Partial<pg.DatabaseError>).position);
       throw new MigrationError(
-        `Migration ${file.filename} failed${line === undefined ? '' : ` at line ${line}`}: ${pgError.message}` +
-          (pgError.code ? ` (SQLSTATE ${pgError.code})` : ''),
+        `Migration ${file.filename} failed${line === undefined ? '' : ` at line ${line}`}: ${describePgError(error)}`,
       );
     }
+
+    // The static check cannot see every form (bare END;, COMMIT AND CHAIN, ...): verify the
+    // migration is still inside the runner's transaction before recording it as applied.
+    if ((await currentTransactionId(client)) !== transactionId) {
+      throw new MigrationError(
+        `Migration ${file.filename} ended the runner's transaction (COMMIT / END / ROLLBACK / ABORT). ` +
+          'Part of it may already be committed. It was NOT recorded as applied. Remove transaction-control statements.',
+      );
+    }
+
     const executionMs = Math.round(performance.now() - started);
-    await client.query(
-      `INSERT INTO ${HISTORY_TABLE} (version, name, checksum, execution_ms) VALUES ($1, $2, $3, $4)`,
-      [file.version, file.name, file.checksum, executionMs],
-    );
-    await client.query('COMMIT');
+    try {
+      await client.query(
+        `INSERT INTO ${HISTORY_TABLE} (version, name, checksum, execution_ms) VALUES ($1, $2, $3, $4)`,
+        [file.version, file.name, file.checksum, executionMs],
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      throw new MigrationError(`Migration ${file.filename} failed at COMMIT: ${describePgError(error)}`);
+    }
     return executionMs;
   } catch (error) {
     // Keep the original error: a failed ROLLBACK (e.g. lost connection) must not replace it.
@@ -189,6 +216,10 @@ export async function migrate(
     }
 
     for (const file of pending) {
+      // Undo session-level SET / SET ROLE from the previous migration, so one run and several
+      // runs produce the same schema. (DISCARD ALL is not used: it would release the lock.)
+      await client.query('RESET ALL');
+      await client.query('RESET ROLE');
       logger.info(`Applying ${file.filename} ...`);
       const executionMs = await applyOne(client, file);
       logger.info(`Applied  ${file.filename} (${executionMs} ms)`);

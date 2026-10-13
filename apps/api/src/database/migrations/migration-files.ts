@@ -21,13 +21,29 @@ const FILE_PATTERN = /^(\d{4})_([a-z0-9]+(?:_[a-z0-9]+)*)\.sql$/;
 const IGNORED_FILES = new Set(['README.md', '.gitkeep']);
 
 /**
- * Every migration runs inside a transaction managed by the runner, so files must not
- * control transactions themselves. PL/pgSQL `BEGIN` / `END;` blocks (no `BEGIN;`) are fine.
+ * Every migration runs inside a transaction managed by the runner, so files must not control
+ * transactions themselves. Matches a whole transaction-control statement at the start of a line
+ * or after `;` (BEGIN; COMMIT; ROLLBACK; ABORT; BEGIN/END TRANSACTION|WORK; START TRANSACTION ...).
+ * PL/pgSQL `BEGIN ... END;` blocks, `BEGIN ATOMIC`, `ROLLBACK TO SAVEPOINT` and words in comments pass.
+ * This is an early warning only: the runner also verifies at runtime that the transaction survived.
  */
-const TRANSACTION_CONTROL = /^\s*(?:begin\s*;|start\s+transaction\b|commit\b|rollback\b)/im;
+const TRANSACTION_CONTROL = new RegExp(
+  [
+    String.raw`(?:^|;)[ \t]*(?:`,
+    // BEGIN; / BEGIN WORK; / BEGIN TRANSACTION  (a bare PL/pgSQL "BEGIN" line has no semicolon)
+    String.raw`begin(?:\s+(?:work|transaction))?[ \t]*;|begin\s+(?:work|transaction)[ \t]*$`,
+    String.raw`|(?:commit|rollback|abort)(?:\s+(?:work|transaction))?[ \t]*(?:;|$)`,
+    String.raw`|end\s+(?:work|transaction)[ \t]*(?:;|$)`,
+    String.raw`|start\s+transaction\b[^;\n]*(?:;|$)`,
+    ')',
+  ].join(''),
+  'im',
+);
+
+const UTF8 = new TextDecoder('utf-8', { fatal: true });
 
 export function normalizeSql(raw: string): string {
-  return raw.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  return raw.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
 }
 
 export function computeChecksum(sql: string): string {
@@ -56,7 +72,7 @@ export function parseMigrationFile(filename: string, raw: string): MigrationFile
   }
   if (TRANSACTION_CONTROL.test(sql)) {
     throw new MigrationError(
-      `Migration ${filename} contains a transaction-control statement (BEGIN; / START TRANSACTION / COMMIT / ROLLBACK). ` +
+      `Migration ${filename} contains a transaction-control statement (BEGIN; / START TRANSACTION / COMMIT / ROLLBACK / ABORT / END TRANSACTION). ` +
         'The runner wraps every migration in its own transaction. Remove those statements.',
     );
   }
@@ -102,7 +118,12 @@ export async function readMigrationFiles(directory: string): Promise<MigrationFi
     if (!entry.isFile()) {
       throw new MigrationError(`Unexpected entry "${entry.name}" in ${directory}. Only migration files are allowed.`);
     }
-    const raw = await readFile(join(directory, entry.name), 'utf8');
+    let raw: string;
+    try {
+      raw = UTF8.decode(await readFile(join(directory, entry.name)));
+    } catch {
+      throw new MigrationError(`Migration ${entry.name} is not valid UTF-8. Save it with UTF-8 encoding.`);
+    }
     files.push(parseMigrationFile(entry.name, raw));
   }
   return validateSequence(files);
