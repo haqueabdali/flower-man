@@ -50,7 +50,7 @@ async function errorOf(response: Response): Promise<ApiErrorResponse['error']> {
 }
 
 before(async () => {
-  const base = loadAppConfig(process.env);
+  const base = loadAppConfig({ ...process.env, NODE_ENV: 'test', MAIL_TRANSPORT: 'memory' });
   database = await createTestDatabase(base.database);
   // Many registrations come from one test IP: raise only that limit. Login limits stay real.
   config = {
@@ -82,8 +82,8 @@ describe('POST /auth/register', () => {
     assert.ok(Date.parse(tokens.accessTokenExpiresAt) - Date.now() <= 15 * 60_000);
     assert.ok(Date.parse(tokens.refreshTokenExpiresAt) - Date.now() > 29 * 24 * 3_600_000);
 
-    const events = await db.query<{ type: string }>('SELECT type FROM security_events WHERE user_id = $1', [tokens.user.id]);
-    assert.deepEqual(events.rows.map((row) => row.type), ['REGISTERED']);
+    const events = await db.query<{ type: string }>('SELECT type FROM security_events WHERE user_id = $1 ORDER BY id', [tokens.user.id]);
+    assert.deepEqual(events.rows.map((row) => row.type), ['REGISTERED', 'EMAIL_VERIFICATION_SENT']);
   });
 
   it('stores only a scrypt hash of the password, and only a hash of the refresh token', async () => {

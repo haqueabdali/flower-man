@@ -3,7 +3,7 @@
 Flower marketplace and delivery platform, launching first in **Bergamo (BG), Italy**.
 It connects customers, flower shops, freelance flower sellers, couriers and platform administrators.
 
-> Status: **Milestone 4b: Identity & Authentication**. See [docs/milestones.md](docs/milestones.md).
+> Status: **Milestone 4c: Email Verification & Password Recovery**. See [docs/milestones.md](docs/milestones.md).
 
 ## Repository layout
 
@@ -70,6 +70,12 @@ If you already have a `.env` from an earlier milestone, copy the new lines from 
 | POST   | `/api/v1/auth/refresh`  | public | Single-use refresh token → new tokens    |
 | POST   | `/api/v1/auth/logout`   | bearer | Ends this session                        |
 | GET    | `/api/v1/auth/me`       | bearer | Current user and capabilities            |
+| POST   | `/api/v1/auth/email-verification/request` | bearer | Send the verification email again |
+| POST   | `/api/v1/auth/email-verification/confirm` | public | `{ token }` from the email link    |
+| POST   | `/api/v1/auth/password-reset/request`     | public | `{ email }`; always 202             |
+| POST   | `/api/v1/auth/password-reset/confirm`     | public | `{ token, newPassword }`; signs out all sessions |
+
+Development emails land in Mailpit: http://localhost:8025 (started by `pnpm db:up`).
 
 ## Root scripts
 

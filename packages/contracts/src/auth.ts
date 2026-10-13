@@ -78,3 +78,18 @@ export interface AuthTokensResponse {
 export interface MeResponse {
   readonly user: AuthUser;
 }
+
+/** Tokens delivered by email links (verification, password reset). */
+const emailToken = z.string().min(20).max(200);
+
+/** POST /api/v1/auth/email-verification/confirm */
+export const confirmEmailRequestSchema = z.strictObject({ token: emailToken });
+export type ConfirmEmailRequest = z.infer<typeof confirmEmailRequestSchema>;
+
+/** POST /api/v1/auth/password-reset/request. Always answers 202, whether or not the email exists. */
+export const passwordResetRequestSchema = z.strictObject({ email });
+export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>;
+
+/** POST /api/v1/auth/password-reset/confirm. Signs out every session of the account. */
+export const passwordResetConfirmSchema = z.strictObject({ token: emailToken, newPassword: password });
+export type PasswordResetConfirm = z.infer<typeof passwordResetConfirmSchema>;

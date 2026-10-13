@@ -2,7 +2,8 @@
 #
 #   pnpm db:up      start PostgreSQL/PostGIS and wait until it is healthy
 #   pnpm db:check   print database, user, PostgreSQL and PostGIS versions
-#   pnpm db:down    stop the container (data is kept in the named volume)
+#   pnpm db:down    stop the containers (data is kept in the named volume)
+#   Mailpit (dev email inbox): http://localhost:8025
 name: flower-man
 
 services:
@@ -42,6 +43,16 @@ services:
       retries: 12
       start_period: 60s
       start_interval: 1s
+
+  mail:
+    # Catches every email the API sends in development; nothing leaves your PC.
+    image: axllent/mailpit:v1.31
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025" # SMTP  (SMTP_URL=smtp://127.0.0.1:1025)
+      - "127.0.0.1:8025:8025" # Web inbox
+    environment:
+      MP_MAX_MESSAGES: 500
 
 configs:
   postgis-init:

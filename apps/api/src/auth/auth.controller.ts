@@ -15,17 +15,12 @@ import { ZodBodyPipe } from '../common/zod-body.pipe.js';
 import type { AppConfig, RateLimit } from '../config/app-config.js';
 import { APP_CONFIG } from '../config/config.module.js';
 import { type AuthenticatedContext, AuthGuard, CurrentAuth } from './auth.guard.js';
-import { AuthService, type RequestMeta } from './auth.service.js';
+import { AccountService } from './account.service.js';
+import { AuthService } from './auth.service.js';
 import { RateLimiter } from './rate-limiter.js';
+import { requestMeta } from './request-meta.js';
 
 const limiter = ({ limit, windowMs }: RateLimit): RateLimiter => new RateLimiter(limit, windowMs);
-
-function requestMeta(request: Request): RequestMeta {
-  return {
-    ip: request.ip ?? null,
-    userAgent: request.header('user-agent')?.slice(0, 512) ?? null,
-  };
-}
 
 @Controller('auth')
 export class AuthController {
@@ -37,6 +32,7 @@ export class AuthController {
 
   constructor(
     private readonly auth: AuthService,
+    private readonly account: AccountService,
     @Inject(APP_CONFIG) config: AppConfig,
   ) {
     const limits = config.auth.rateLimits;
@@ -55,7 +51,10 @@ export class AuthController {
   ): Promise<AuthTokensResponse> {
     const meta = requestMeta(request);
     this.limit(response, this.registerPerIp, `ip:${meta.ip}`);
-    return this.auth.register(body, meta);
+    const tokens = await this.auth.register(body, meta);
+    // The account exists even if the email cannot be sent; the user can ask for it again.
+    await this.account.sendVerificationEmail(tokens.user.id, meta).catch(() => undefined);
+    return tokens;
   }
 
   @Post('login')

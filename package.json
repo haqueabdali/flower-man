@@ -18,7 +18,7 @@
     "db:up": "docker compose -f infra/compose.yaml up -d --wait",
     "db:check": "docker compose -f infra/compose.yaml exec -T db psql -U flower_man -d flower_man -X -v ON_ERROR_STOP=1 -c \"SELECT current_database() AS database, current_user AS db_user, current_setting('server_version') AS postgres, (SELECT default_version FROM pg_available_extensions WHERE name = 'postgis') AS postgis_available, (SELECT extversion FROM pg_extension WHERE extname = 'postgis') AS postgis_installed, current_setting('TimeZone') AS timezone, datlocprovider AS locale_provider, datlocale AS locale FROM pg_database WHERE datname = current_database();\"",
     "db:status": "docker compose -f infra/compose.yaml ps --all",
-    "db:logs": "docker compose -f infra/compose.yaml logs --tail 100 db",
+    "db:logs": "docker compose -f infra/compose.yaml logs --tail 100",
     "db:down": "docker compose -f infra/compose.yaml down",
     "db:migrate": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate",
     "db:migrate:status": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate:status"

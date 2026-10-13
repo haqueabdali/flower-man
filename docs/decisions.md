@@ -169,5 +169,27 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   before running more than one API instance.**
 - Request bodies are validated with the shared zod schemas from `@flower-man/contracts` (`ZodBodyPipe`).
   Unknown fields are rejected, which prevents mass assignment (e.g. sending `capabilities`).
-- Not in 4b: email verification and password recovery (Milestone 4c, which needs email delivery),
+- Not in 4b: email verification and password recovery (Milestone 4c, see ADR-011),
   account deletion requests (privacy milestone) and per-account lockout notifications.
+
+## ADR-011: Email verification and password recovery (Milestone 4c)
+
+- `auth_action_tokens` (`0003_account_recovery.sql`): single-use, 256-bit random tokens stored as SHA-256 hashes,
+  each with a purpose (`EMAIL_VERIFICATION`, valid 24h; `PASSWORD_RESET`, valid 30 min) and the address it was sent to.
+  Issuing a new token invalidates older unused ones of the same purpose. A token of one purpose never works for the other.
+- Emails contain links `${EMAIL_LINK_BASE_URL}/verify-email?token=…` and `/reset-password?token=…`. The apps / web page
+  will handle these paths (deep links come with the mobile milestones). Until then the token can be posted to the API directly.
+- Registration sends the verification email automatically. Signing in does not require a verified email: features that
+  need it (e.g. checkout) will check `emailVerified`.
+- Password reset:
+  - `request` always answers 202, does nothing for unknown or suspended accounts, and sends in the background
+    (the response time does not reveal whether the account exists);
+  - `confirm` sets the new password, revokes every session (`PASSWORD_CHANGED`), invalidates other reset links
+    and marks the email verified (the link proves mailbox control).
+- Mail transport (`MAIL_TRANSPORT`):
+  - `smtp` (nodemailer; `SMTP_URL`): required in production;
+  - `log` (prints emails, development only; refused in production because it would log reset links);
+  - `memory` (tests only).
+  Locally, `infra/compose.yaml` runs Mailpit (SMTP 127.0.0.1:1025, inbox http://localhost:8025).
+- Rate limits: reset requests 20 per IP and 5 per account per hour; verification re-sends 5 per user per hour.
+- Security events: `EMAIL_VERIFICATION_SENT`, `EMAIL_VERIFIED`, `PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_COMPLETED`.

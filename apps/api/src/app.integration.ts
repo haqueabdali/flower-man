@@ -16,7 +16,7 @@ const ADMIN_ORIGIN = 'http://admin.flowerman.test';
 
 async function start(overrides: Partial<AppConfig> = {}): Promise<{ app: NestExpressApplication; baseUrl: string }> {
   const config: AppConfig = {
-    ...loadAppConfig(process.env),
+    ...loadAppConfig({ ...process.env, NODE_ENV: 'test', MAIL_TRANSPORT: 'memory' }),
     nodeEnv: 'test',
     corsOrigins: [ADMIN_ORIGIN],
     ...overrides,

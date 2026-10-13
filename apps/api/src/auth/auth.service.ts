@@ -8,26 +8,15 @@ import { PG_POOL } from '../database/database.module.js';
 import { withTransaction } from '../database/transaction.js';
 import { loadAuthUser } from './auth-users.js';
 import { getDummyPasswordHash, hashPassword, verifyPassword } from './password.js';
+import { recordSecurityEvent, type RequestMeta } from './security-events.js';
 import { createAccessToken, generateRefreshToken, hashToken } from './tokens.js';
 
-export interface RequestMeta {
-  readonly ip: string | null;
-  readonly userAgent: string | null;
-}
+export type { RequestMeta } from './security-events.js';
 
 export interface AuthContext {
   readonly userId: string;
   readonly sessionId: string;
 }
-
-type SecurityEventType =
-  | 'REGISTERED'
-  | 'LOGIN_SUCCEEDED'
-  | 'LOGIN_FAILED'
-  | 'LOGIN_BLOCKED_ACCOUNT_STATUS'
-  | 'TOKEN_REFRESHED'
-  | 'REFRESH_TOKEN_REUSED'
-  | 'LOGGED_OUT';
 
 const INVALID_CREDENTIALS = 'Invalid email or password.';
 const INVALID_REFRESH = 'Session expired. Please sign in again.';
@@ -59,7 +48,7 @@ export class AuthService {
       await client.query('INSERT INTO user_credentials (user_id, password_hash) VALUES ($1, $2)', [userId, passwordHash]);
       await client.query(`INSERT INTO user_capabilities (user_id, capability) VALUES ($1, 'CUSTOMER')`, [userId]);
       const tokens = await this.startSession(client, userId, meta);
-      await this.recordEvent(client, 'REGISTERED', userId, tokens.sessionId, meta);
+      await recordSecurityEvent(client, 'REGISTERED', userId, tokens.sessionId, meta);
       return tokens.response;
     });
     if (!created) {
@@ -79,15 +68,15 @@ export class AuthService {
 
     if (!account) {
       await verifyPassword(input.password, await getDummyPasswordHash());
-      await this.recordEvent(this.pool, 'LOGIN_FAILED', null, null, meta, { reason: 'UNKNOWN_EMAIL' });
+      await recordSecurityEvent(this.pool, 'LOGIN_FAILED', null, null, meta, { reason: 'UNKNOWN_EMAIL' });
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
     if (!(await verifyPassword(input.password, account.password_hash))) {
-      await this.recordEvent(this.pool, 'LOGIN_FAILED', account.id, null, meta, { reason: 'WRONG_PASSWORD' });
+      await recordSecurityEvent(this.pool, 'LOGIN_FAILED', account.id, null, meta, { reason: 'WRONG_PASSWORD' });
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
     if (account.status !== 'ACTIVE') {
-      await this.recordEvent(this.pool, 'LOGIN_BLOCKED_ACCOUNT_STATUS', account.id, null, meta, { status: account.status });
+      await recordSecurityEvent(this.pool, 'LOGIN_BLOCKED_ACCOUNT_STATUS', account.id, null, meta, { status: account.status });
       if (account.status === 'SUSPENDED') {
         throw new ForbiddenException('This account is suspended. Contact Flower Man support.');
       }
@@ -96,7 +85,7 @@ export class AuthService {
 
     return withTransaction(this.pool, async (client) => {
       const tokens = await this.startSession(client, account.id, meta);
-      await this.recordEvent(client, 'LOGIN_SUCCEEDED', account.id, tokens.sessionId, meta);
+      await recordSecurityEvent(client, 'LOGIN_SUCCEEDED', account.id, tokens.sessionId, meta);
       return tokens.response;
     });
   }
@@ -134,7 +123,7 @@ export class AuthService {
             [row.session_id],
           );
         }
-        await this.recordEvent(client, 'REFRESH_TOKEN_REUSED', row.user_id, row.session_id, meta);
+        await recordSecurityEvent(client, 'REFRESH_TOKEN_REUSED', row.user_id, row.session_id, meta);
         return { ok: false as const };
       }
       if (row.revoked_at !== null || row.expires_at <= new Date() || row.status !== 'ACTIVE') {
@@ -144,7 +133,7 @@ export class AuthService {
       await client.query('UPDATE auth_refresh_tokens SET used_at = now() WHERE token_hash = $1', [hashToken(refreshToken)]);
       await client.query('UPDATE auth_sessions SET last_used_at = now() WHERE id = $1', [row.session_id]);
       const response = await this.issueTokens(client, row.user_id, row.session_id, row.expires_at);
-      await this.recordEvent(client, 'TOKEN_REFRESHED', row.user_id, row.session_id, meta);
+      await recordSecurityEvent(client, 'TOKEN_REFRESHED', row.user_id, row.session_id, meta);
       return { ok: true as const, response };
     });
     if (!outcome.ok) {
@@ -162,7 +151,7 @@ export class AuthService {
       await client.query('UPDATE auth_refresh_tokens SET used_at = now() WHERE session_id = $1 AND used_at IS NULL', [
         auth.sessionId,
       ]);
-      await this.recordEvent(client, 'LOGGED_OUT', auth.userId, auth.sessionId, meta);
+      await recordSecurityEvent(client, 'LOGGED_OUT', auth.userId, auth.sessionId, meta);
     });
   }
 
@@ -207,19 +196,5 @@ export class AuthService {
       refreshTokenExpiresAt: sessionExpiresAt.toISOString(),
       user: await loadAuthUser(client, userId),
     };
-  }
-
-  private async recordEvent(
-    db: pg.ClientBase | pg.Pool,
-    type: SecurityEventType,
-    userId: string | null,
-    sessionId: string | null,
-    meta: RequestMeta,
-    details: Record<string, string> = {},
-  ): Promise<void> {
-    await db.query(
-      `INSERT INTO security_events (type, user_id, session_id, ip, user_agent, details) VALUES ($1, $2, $3, $4, $5, $6)`,
-      [type, userId, sessionId, meta.ip, meta.userAgent, JSON.stringify(details)],
-    );
   }
 }

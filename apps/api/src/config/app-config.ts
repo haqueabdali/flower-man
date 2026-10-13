@@ -14,6 +14,61 @@ export interface AppConfig {
   readonly version: string;
   readonly database: DatabaseConfig;
   readonly auth: AuthConfig;
+  readonly mail: MailConfig;
+}
+
+export interface MailConfig {
+  /** log: print emails to the API log (development only). smtp: send. memory: keep in memory (tests only). */
+  readonly transport: 'log' | 'smtp' | 'memory';
+  readonly from: string;
+  /** smtp://user:pass@host:port or smtps://... Required for transport "smtp". */
+  readonly smtpUrl: string | null;
+  /** Base URL of links in emails, e.g. https://app.flowerman.it → .../verify-email?token=... */
+  readonly linkBaseUrl: string;
+}
+
+function parseMailConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): MailConfig {
+  const transport = (env.MAIL_TRANSPORT?.trim().toLowerCase() || 'log') as MailConfig['transport'];
+  if (!['log', 'smtp', 'memory'].includes(transport)) {
+    throw new ConfigError('MAIL_TRANSPORT must be "log" or "smtp".');
+  }
+  if (transport === 'memory' && nodeEnv !== 'test') {
+    throw new ConfigError('MAIL_TRANSPORT=memory is only allowed with NODE_ENV=test.');
+  }
+  if (transport === 'log' && nodeEnv === 'production') {
+    throw new ConfigError('MAIL_TRANSPORT=log would print verification and reset links to the log. Use "smtp" in production.');
+  }
+
+  const from = env.MAIL_FROM?.trim() || 'Flower Man <no-reply@flowerman.localhost>';
+
+  const smtpUrl = env.SMTP_URL?.trim() || null;
+  if (transport === 'smtp') {
+    if (!smtpUrl) {
+      throw new ConfigError('SMTP_URL is required when MAIL_TRANSPORT=smtp (e.g. smtp://127.0.0.1:1025).');
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(smtpUrl);
+    } catch {
+      throw new ConfigError('SMTP_URL is not a valid URL (smtp://user:password@host:port).');
+    }
+    if (parsed.protocol !== 'smtp:' && parsed.protocol !== 'smtps:') {
+      throw new ConfigError('SMTP_URL must start with smtp:// or smtps://.');
+    }
+  }
+
+  const rawLinkBase = env.EMAIL_LINK_BASE_URL?.trim() || 'http://localhost:3000';
+  let linkBase: URL;
+  try {
+    linkBase = new URL(rawLinkBase);
+  } catch {
+    throw new ConfigError('EMAIL_LINK_BASE_URL is not a valid URL.');
+  }
+  if (nodeEnv === 'production' && linkBase.protocol !== 'https:') {
+    throw new ConfigError('EMAIL_LINK_BASE_URL must use https in production.');
+  }
+
+  return { transport, from, smtpUrl, linkBaseUrl: linkBase.toString().replace(/\/$/, '') };
 }
 
 export interface AuthConfig {
@@ -35,6 +90,9 @@ export interface AuthRateLimits {
   readonly loginPerIp: RateLimit;
   readonly registerPerIp: RateLimit;
   readonly refreshPerIp: RateLimit;
+  readonly passwordResetPerIp: RateLimit;
+  readonly passwordResetPerAccount: RateLimit;
+  readonly verificationEmailPerUser: RateLimit;
 }
 
 const MINUTE = 60_000;
@@ -44,6 +102,9 @@ export const DEFAULT_AUTH_RATE_LIMITS: AuthRateLimits = {
   loginPerIp: { limit: 50, windowMs: 15 * MINUTE },
   registerPerIp: { limit: 10, windowMs: 60 * MINUTE },
   refreshPerIp: { limit: 60, windowMs: MINUTE },
+  passwordResetPerIp: { limit: 20, windowMs: 60 * MINUTE },
+  passwordResetPerAccount: { limit: 5, windowMs: 60 * MINUTE },
+  verificationEmailPerUser: { limit: 5, windowMs: 60 * MINUTE },
 };
 
 /** The value shipped in .env.example. Accepted locally, refused in production. */
@@ -139,5 +200,6 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
     version: env.APP_VERSION?.trim() || '0.0.0-dev',
     database: loadDatabaseConfig(env),
     auth: parseAuthConfig(env, nodeEnv),
+    mail: parseMailConfig(env, nodeEnv),
   };
 }

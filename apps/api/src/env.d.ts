@@ -11,6 +11,10 @@ declare global {
       readonly DATABASE_URL?: string;
       readonly DATABASE_SSL?: string;
       readonly AUTH_ACCESS_TOKEN_SECRET?: string;
+      readonly MAIL_TRANSPORT?: string;
+      readonly MAIL_FROM?: string;
+      readonly SMTP_URL?: string;
+      readonly EMAIL_LINK_BASE_URL?: string;
     }
   }
 }
