@@ -49,3 +49,5 @@ export interface ApiErrorResponse {
     readonly requestId: string;
   };
 }
+
+export * from './auth.js';

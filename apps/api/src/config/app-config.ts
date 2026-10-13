@@ -13,6 +13,56 @@ export interface AppConfig {
   readonly trustProxy: false | number;
   readonly version: string;
   readonly database: DatabaseConfig;
+  readonly auth: AuthConfig;
+}
+
+export interface AuthConfig {
+  /** HS256 key for access tokens (AUTH_ACCESS_TOKEN_SECRET, at least 32 characters). */
+  readonly accessTokenSecret: Uint8Array;
+  readonly accessTokenTtlSeconds: number;
+  /** Absolute session lifetime: refresh tokens stop working after this. */
+  readonly sessionTtlDays: number;
+  readonly rateLimits: AuthRateLimits;
+}
+
+export interface RateLimit {
+  readonly limit: number;
+  readonly windowMs: number;
+}
+
+export interface AuthRateLimits {
+  readonly loginPerAccount: RateLimit;
+  readonly loginPerIp: RateLimit;
+  readonly registerPerIp: RateLimit;
+  readonly refreshPerIp: RateLimit;
+}
+
+const MINUTE = 60_000;
+
+export const DEFAULT_AUTH_RATE_LIMITS: AuthRateLimits = {
+  loginPerAccount: { limit: 10, windowMs: 15 * MINUTE },
+  loginPerIp: { limit: 50, windowMs: 15 * MINUTE },
+  registerPerIp: { limit: 10, windowMs: 60 * MINUTE },
+  refreshPerIp: { limit: 60, windowMs: MINUTE },
+};
+
+/** The value shipped in .env.example. Accepted locally, refused in production. */
+export const EXAMPLE_ACCESS_TOKEN_SECRET = 'dev-only-access-token-secret-change-me-0000';
+
+function parseAuthConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AuthConfig {
+  const secret = env.AUTH_ACCESS_TOKEN_SECRET?.trim() ?? '';
+  if (secret.length < 32) {
+    throw new ConfigError('AUTH_ACCESS_TOKEN_SECRET must be set to at least 32 random characters (openssl rand -base64 48).');
+  }
+  if (nodeEnv === 'production' && secret === EXAMPLE_ACCESS_TOKEN_SECRET) {
+    throw new ConfigError('AUTH_ACCESS_TOKEN_SECRET still has the .env.example value. Generate a real secret for production.');
+  }
+  return {
+    accessTokenSecret: new TextEncoder().encode(secret),
+    accessTokenTtlSeconds: 15 * 60,
+    sessionTtlDays: 30,
+    rateLimits: DEFAULT_AUTH_RATE_LIMITS,
+  };
 }
 
 const NODE_ENVS: readonly NodeEnv[] = ['development', 'test', 'production'];
@@ -88,5 +138,6 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
     trustProxy: parseTrustProxy(env.TRUST_PROXY),
     version: env.APP_VERSION?.trim() || '0.0.0-dev',
     database: loadDatabaseConfig(env),
+    auth: parseAuthConfig(env, nodeEnv),
   };
 }

@@ -10,6 +10,7 @@ declare global {
       readonly APP_VERSION?: string;
       readonly DATABASE_URL?: string;
       readonly DATABASE_SSL?: string;
+      readonly AUTH_ACCESS_TOKEN_SECRET?: string;
     }
   }
 }

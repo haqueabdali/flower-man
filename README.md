@@ -3,7 +3,7 @@
 Flower marketplace and delivery platform, launching first in **Bergamo (BG), Italy**.
 It connects customers, flower shops, freelance flower sellers, couriers and platform administrators.
 
-> Status: **Milestone 4a: API Foundation**. See [docs/milestones.md](docs/milestones.md).
+> Status: **Milestone 4b: Identity & Authentication**. See [docs/milestones.md](docs/milestones.md).
 
 ## Repository layout
 
@@ -57,7 +57,19 @@ pnpm dev:api            # API on http://127.0.0.1:4000/api/v1 (reloads on change
 curl http://127.0.0.1:4000/api/v1/health
 ```
 
-If you already have a `.env` from an earlier milestone, copy the new API lines from `.env.example` into it.
+If you already have a `.env` from an earlier milestone, copy the new lines from `.env.example` into it
+(`AUTH_ACCESS_TOKEN_SECRET` is required from Milestone 4b).
+
+## API endpoints so far
+
+| Method | Path                    | Auth   | Purpose                                  |
+|--------|-------------------------|--------|------------------------------------------|
+| GET    | `/api/v1/health`        | public | Liveness + database check                |
+| POST   | `/api/v1/auth/register` | public | Customer sign-up → tokens                |
+| POST   | `/api/v1/auth/login`    | public | Email + password → tokens                |
+| POST   | `/api/v1/auth/refresh`  | public | Single-use refresh token → new tokens    |
+| POST   | `/api/v1/auth/logout`   | bearer | Ends this session                        |
+| GET    | `/api/v1/auth/me`       | bearer | Current user and capabilities            |
 
 ## Root scripts
 

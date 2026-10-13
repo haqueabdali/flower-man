@@ -139,3 +139,35 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   `idle_in_transaction_session_timeout` 60s, client `query_timeout` 20s. The pool is closed on shutdown (SIGTERM/SIGINT).
 - `GET /api/v1/health` returns 200 `{status:"ok"}` or 503 `{status:"down"}` with `checks.database`, plus `Cache-Control: no-store`.
 - Input validation (shared schemas in `@flower-man/contracts`) arrives with the first endpoint that accepts input (Milestone 4b).
+
+## ADR-010: Identity and authentication (Milestone 4b)
+
+- Tables (`0002_identity.sql`):
+  - `users`: email unique case-insensitively via `email_normalized`; status `ACTIVE | SUSPENDED | DELETED`;
+  - `user_credentials`: password hash kept apart from profile data;
+  - `user_capabilities`: a user may hold several capabilities;
+  - `auth_sessions`: one per signed-in device;
+  - `auth_refresh_tokens`: SHA-256 hashes only;
+  - `security_events`: append-only, enforced by a trigger.
+- Passwords: scrypt from `node:crypto` (N=2^17, r=8, p=1, 16-byte salt, 64-byte key), with parameters stored in each hash.
+  The `argon2` package was not used because it needs a native install script (supply-chain rule in ADR-001).
+  Passwords are NFKC-normalized. Length is 10 to 128 characters. Unknown emails still run a dummy hash, so timing does not reveal accounts.
+- Tokens:
+  - access token: JWT HS256 via `jose` (iss `flower-man-api`, aud `flower-man`, `sub` = user, `sid` = session), 15 minutes,
+    sent as `Authorization: Bearer`. `AUTH_ACCESS_TOKEN_SECRET` must be at least 32 characters, and the `.env.example` value is refused in production;
+  - refresh token: opaque 256-bit random value, single use, rotated on every refresh. Replaying a used one revokes the whole session.
+    Sessions end 30 days after sign-in at the latest (refresh never extends them).
+- `AuthGuard` loads the session and user on **every** request (one query). Logout, suspension, revocation and capability changes
+  therefore apply immediately, not when the access token expires.
+- Authorization: `@UseGuards(AuthGuard)` + `@RequireCapabilities(...)` (any of the listed). It is enforced by the API only.
+- Registration grants `CUSTOMER`. Partner capabilities come with onboarding (Milestone 7); platform roles come from the
+  bootstrap (Milestone 5) or an admin.
+- Login responses: wrong password and unknown email both get the same 401. A suspended account gets 403 only after the correct password.
+  Registering an existing email gets 409, which deliberately reveals the email is taken: users need it to recover, and the rate limits cap probing.
+- Rate limits (in-memory, per API process): login 10 per account and 50 per IP per 15 minutes, registration 10 per IP per hour,
+  refresh 60 per IP per minute; over the limit gets 429 + `Retry-After`. **A shared store (PostgreSQL or Redis) is required
+  before running more than one API instance.**
+- Request bodies are validated with the shared zod schemas from `@flower-man/contracts` (`ZodBodyPipe`).
+  Unknown fields are rejected, which prevents mass assignment (e.g. sending `capabilities`).
+- Not in 4b: email verification and password recovery (Milestone 4c, which needs email delivery),
+  account deletion requests (privacy milestone) and per-account lockout notifications.

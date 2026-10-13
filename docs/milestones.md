@@ -9,7 +9,8 @@ Legend: ✅ verified on the developer machine · 🟡 implemented, not yet verif
 | 2  | PostgreSQL/PostGIS            | ✅     | PostgreSQL 17.11 + PostGIS 3.6.4 on `127.0.0.1:55432`, healthy, `db:check` OK and port reachable on Windows. |
 | 3  | Migration System              | ✅     | SQL runner (`pnpm db:migrate`), `schema_migrations`, 0001 creates PostGIS. 9/9 integration tests pass on Windows. |
 | 4a | API Foundation                | 🟡     | NestJS 12 app, config validation, pg pool, `/api/v1/health`, helmet, CORS allowlist, error shape, request IDs, `pnpm dev:api`. Passes on Linux; awaiting the Windows run. |
-| 4b | Identity & Authentication     | ⏳     | Users, credentials, capabilities, sessions, register/login/refresh/logout. |
+| 4b | Identity & Authentication     | 🟡     | Users, credentials, capabilities, sessions, register/login/refresh/logout/me, capability guard, rate limits. Passes on Linux; awaiting the Windows run. |
+| 4c | Email Verification & Password Recovery | ⏳ | Email delivery abstraction (dev: log/Mailpit), verification and reset tokens. |
 | 5  | Platform Owner                | ⏳     | |
 | 6  | Service Zones                 | ⏳     | |
 | 7  | Partner Onboarding            | ⏳     | |
