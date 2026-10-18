@@ -1,21 +1,25 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { RateLimiter } from './rate-limiter.js';
+import { MemoryRateLimiter } from './rate-limiter.js';
 
-describe('RateLimiter', () => {
-  it('allows up to the limit per key and window, then blocks', () => {
+describe('MemoryRateLimiter', () => {
+  it('allows up to the limit per key and window, then blocks', async () => {
     let now = 0;
-    const limiter = new RateLimiter(3, 60_000, () => now);
-    assert.deepEqual([1, 2, 3, 4].map(() => limiter.consume('a').allowed), [true, true, true, false]);
-    assert.equal(limiter.consume('b').allowed, true);
+    const limiter = new MemoryRateLimiter(3, 60_000, () => now);
+    const results = [];
+    for (let i = 0; i < 4; i += 1) {
+      results.push((await limiter.consume('a')).allowed);
+    }
+    assert.deepEqual(results, [true, true, true, false]);
+    assert.equal((await limiter.consume('b')).allowed, true);
 
     now = 30_000;
-    const blocked = limiter.consume('a');
+    const blocked = await limiter.consume('a');
     assert.equal(blocked.allowed, false);
     assert.equal(blocked.retryAfterSeconds, 30);
 
     now = 60_000;
-    assert.equal(limiter.consume('a').allowed, true);
+    assert.equal((await limiter.consume('a')).allowed, true);
   });
 });

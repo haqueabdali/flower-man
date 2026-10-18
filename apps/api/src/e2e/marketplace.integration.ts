@@ -138,7 +138,7 @@ before(async () => {
   config = {
     ...loaded,
     database: database.config,
-    storage: { driver: 'local', localDir: storageDir },
+    storage: { driver: 'local', localDir: storageDir, s3: null },
     auth: { ...loaded.auth, rateLimits: { ...loaded.auth.rateLimits, registerPerIp: { limit: 10_000, windowMs: 60_000 } } },
   };
   app = await createApp(config);

@@ -17,14 +17,12 @@ import { APP_CONFIG } from '../config/config.module.js';
 import { type AuthenticatedContext, AuthGuard, CurrentAuth } from './auth.guard.js';
 import { AccountService } from './account.service.js';
 import { AuthService } from './auth.service.js';
-import { RateLimiter } from './rate-limiter.js';
+import { RATE_LIMITER_FACTORY, type RateLimiter, type RateLimiterFactory } from './rate-limiter.js';
 import { requestMeta } from './request-meta.js';
-
-const limiter = ({ limit, windowMs }: RateLimit): RateLimiter => new RateLimiter(limit, windowMs);
 
 @Controller('auth')
 export class AuthController {
-  // Per process (ADR-010). Keys never contain passwords; emails are lower-cased.
+  // Per process or shared in PostgreSQL (RATE_LIMIT_STORE, ADR-015). Keys never contain passwords; emails are lower-cased.
   private readonly loginPerAccount: RateLimiter;
   private readonly loginPerIp: RateLimiter;
   private readonly registerPerIp: RateLimiter;
@@ -34,12 +32,15 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly account: AccountService,
     @Inject(APP_CONFIG) config: AppConfig,
+    @Inject(RATE_LIMITER_FACTORY) createLimiter: RateLimiterFactory,
   ) {
     const limits = config.auth.rateLimits;
-    this.loginPerAccount = limiter(limits.loginPerAccount);
-    this.loginPerIp = limiter(limits.loginPerIp);
-    this.registerPerIp = limiter(limits.registerPerIp);
-    this.refreshPerIp = limiter(limits.refreshPerIp);
+    const limiter = (name: string, { limit, windowMs }: RateLimit): RateLimiter =>
+      createLimiter(name, limit, windowMs);
+    this.loginPerAccount = limiter('login-account', limits.loginPerAccount);
+    this.loginPerIp = limiter('login-ip', limits.loginPerIp);
+    this.registerPerIp = limiter('register-ip', limits.registerPerIp);
+    this.refreshPerIp = limiter('refresh-ip', limits.refreshPerIp);
   }
 
   @Post('register')
@@ -50,7 +51,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthTokensResponse> {
     const meta = requestMeta(request);
-    this.limit(response, this.registerPerIp, `ip:${meta.ip}`);
+    await this.limit(response, this.registerPerIp, `ip:${meta.ip}`);
     const tokens = await this.auth.register(body, meta);
     // The account exists even if the email cannot be sent; the user can ask for it again.
     await this.account.sendVerificationEmail(tokens.user.id, meta).catch(() => undefined);
@@ -66,8 +67,8 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthTokensResponse> {
     const meta = requestMeta(request);
-    this.limit(response, this.loginPerIp, `ip:${meta.ip}`);
-    this.limit(response, this.loginPerAccount, `account:${body.email.trim().toLowerCase()}`);
+    await this.limit(response, this.loginPerIp, `ip:${meta.ip}`);
+    await this.limit(response, this.loginPerAccount, `account:${body.email.trim().toLowerCase()}`);
     return this.auth.login(body, meta);
   }
 
@@ -80,7 +81,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthTokensResponse> {
     const meta = requestMeta(request);
-    this.limit(response, this.refreshPerIp, `ip:${meta.ip}`);
+    await this.limit(response, this.refreshPerIp, `ip:${meta.ip}`);
     return this.auth.refresh(body.refreshToken, meta);
   }
 
@@ -98,8 +99,8 @@ export class AuthController {
     return { user: auth.user };
   }
 
-  private limit(response: Response, limiter: RateLimiter, key: string): void {
-    const result = limiter.consume(key);
+  private async limit(response: Response, limiter: RateLimiter, key: string): Promise<void> {
+    const result = await limiter.consume(key);
     if (!result.allowed) {
       response.setHeader('Retry-After', String(result.retryAfterSeconds));
       throw new HttpException('Too many attempts. Please wait and try again.', HttpStatus.TOO_MANY_REQUESTS);

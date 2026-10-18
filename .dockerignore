@@ -1,0 +1,17 @@
+# Build context = repository root. Keep secrets, local data and build output out of images.
+**/node_modules
+**/dist
+**/dist-test
+**/dist-export
+**/.next
+**/.expo
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+!.env.example
+!.env.production.example
+storage
+apps/*/storage
+apps/customer-mobile
+apps/partner-mobile

@@ -219,8 +219,8 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   Pickup, transit, arrival, proof and completion are courier-only and checked by the state machine. GPS is accepted only while
   ASSIGNED, PICKED_UP or IN_TRANSIT, for the assigned courier. ETA = distance / 18 km/h. The GPS trail is purged 30 days after delivery.
 - **Proof:** a raw JPEG/PNG/WebP upload (≤ 8 MB, checked by magic bytes), stored through `ObjectStorage` with SHA-256 and optional GPS metadata.
-  Completion requires proof; a database constraint enforces it too. Only the `local` driver exists today. An S3-compatible driver
-  must be added before production (`release:production-check` flags `STORAGE_DRIVER=local`).
+  Completion requires proof; a database constraint enforces it too. Drivers: `local` (development) and `s3` (production,
+  see ADR-015).
 - **Earnings:** an append-only `ledger_entries` table, signed cents:
   - on delivery, the seller gets ORDER_REVENUE (+subtotal) and PLATFORM_COMMISSION (−commission), and the courier gets DELIVERY_FEE;
   - a partial unique index makes earnings impossible to record twice;
@@ -271,3 +271,36 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - Push: `expo-notifications` registers the Expo token when the app runs on a device with a project ID. Expo Go cannot test remote push.
 - Verified so far: both apps typecheck and bundle for Android (`expo export`, Hermes). Device testing needs the steps in docs/runbook.md.
 - Known peer warning: `@expo/router-server` (web only) pulls `react-dom@19.2.9` as an auto-installed peer. It does not affect native builds.
+
+## ADR-015: Production storage and shared rate limits
+
+- **Object storage:** `STORAGE_DRIVER=s3` works with any S3-compatible service (AWS S3, Cloudflare R2, MinIO, Scaleway…).
+  - Requests are signed with AWS Signature V4, implemented on `node:crypto` (`apps/api/src/storage/s3-signer.ts`). The API has no
+    AWS SDK dependency: it only needs PUT and GET of single objects. The signer is tested against the worked example in the AWS
+    documentation, and the driver against an in-process S3 stand-in that verifies every signature.
+  - Settings: `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and optional `S3_ENDPOINT`. With an endpoint,
+    objects are addressed path-style (`<endpoint>/<bucket>/<key>`); without one, AWS virtual-hosted style.
+  - The bucket stays **private**. Proof photos are only served through the API, which checks who may see them.
+    Use a key that can only `PutObject`/`GetObject` on that bucket.
+  - `STORAGE_DRIVER=local` is refused when `NODE_ENV=production`. `S3_ENDPOINT` must be https in production.
+  - Errors carry only the HTTP status; response bodies and credentials are never logged.
+- **Rate limits:** `RATE_LIMIT_STORE=postgres` keeps the fixed-window counters in `rate_limit_windows` (migration 0013), so every
+  API instance shares them. It is the default in production; `memory` remains the default elsewhere.
+  - One atomic `INSERT … ON CONFLICT DO UPDATE` per attempt, no extra infrastructure (no Redis).
+  - Keys are `<rule>:<sha256(key)>`: the table never holds an email address or an IP address in clear.
+  - The table is `UNLOGGED`: a database crash only resets the windows early. The maintenance job purges expired rows.
+
+## ADR-016: Continuous integration and container images
+
+- `.github/workflows/ci.yml` runs on every push to `main` and every pull request:
+  - `pnpm release:check` (repository rules, typecheck, unit tests);
+  - the PostgreSQL/PostGIS container from `infra/compose.yaml`, `pnpm db:migrate`, `pnpm test:integration`;
+  - the production builds of the API and the admin app, and both Docker images.
+- Actions are pinned to full commit SHAs, with the release tag in a comment. Releases younger than two weeks are not used.
+  The workflow token is read-only (`permissions: contents: read`).
+- Images (`apps/api/Dockerfile`, `apps/admin-web/Dockerfile`) build from the repository root on `node:24.7.0-alpine`:
+  - API: production dependencies only, plus the migrations at `/app/migrations`; the same image runs the server,
+    the migrations and the owner bootstrap.
+  - Admin: the Next.js standalone server.
+  - Both run as the non-root `node` user and take configuration only from environment variables. `.dockerignore` keeps
+    `.env` files, local storage and build output out of the build context.

@@ -52,10 +52,12 @@ async function errorOf(response: Response): Promise<ApiErrorResponse['error']> {
 before(async () => {
   const base = loadAppConfig({ ...process.env, NODE_ENV: 'test', MAIL_TRANSPORT: 'memory' });
   database = await createTestDatabase(base.database);
-  // Many registrations come from one test IP: raise only that limit. Login limits stay real.
+  // Many registrations come from one test IP: raise only that limit. Login limits stay real,
+  // and live in PostgreSQL as in production, so several app instances share them.
   config = {
     ...base,
     nodeEnv: 'test',
+    rateLimitStore: 'postgres',
     database: database.config,
     auth: { ...base.auth, rateLimits: { ...base.auth.rateLimits, registerPerIp: { limit: 1_000, windowMs: 60_000 } } },
   };
@@ -147,6 +149,8 @@ describe('POST /auth/login', () => {
   });
 
   it('rate-limits registrations per IP (429)', async () => {
+    // The counter is shared with the main app instance, which registered many users already.
+    await db.query(`DELETE FROM rate_limit_windows WHERE key LIKE 'register-ip:%'`);
     const strict = await createApp({
       ...config,
       auth: { ...config.auth, rateLimits: { ...config.auth.rateLimits, registerPerIp: { limit: 2, windowMs: 60_000 } } },
@@ -181,6 +185,35 @@ describe('POST /auth/login', () => {
     const blocked = await post('/auth/login', { email, password: PASSWORD });
     assert.equal(blocked.status, 429, 'even the right password waits for the window to reset');
     assert.ok(Number(blocked.headers.get('retry-after')) > 0);
+  });
+
+  it('shares the limit between API instances and stores only hashed keys', async () => {
+    const email = uniqueEmail('spread');
+    await register(email);
+    const second = await createApp(config);
+    await second.listen(0, '127.0.0.1');
+    try {
+      const secondUrl = `http://127.0.0.1:${(second.getHttpServer().address() as AddressInfo).port}/${API_PREFIX}/auth/login`;
+      const statuses: number[] = [];
+      for (let attempt = 0; attempt < 11; attempt += 1) {
+        // Alternate instances: an attacker spreading attempts over a load balancer gains nothing.
+        const credentials = { email, password: `guess number ${attempt}` };
+        const response =
+          attempt % 2 === 0
+            ? await post('/auth/login', credentials)
+            : await fetch(secondUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) });
+        statuses.push(response.status);
+      }
+      assert.deepEqual(statuses.slice(0, 10), Array(10).fill(401));
+      assert.equal(statuses[10], 429);
+    } finally {
+      await second.close();
+    }
+    const keys = await db.query<{ key: string }>(`SELECT key FROM rate_limit_windows`);
+    assert.ok(keys.rows.length > 0);
+    for (const { key } of keys.rows) {
+      assert.match(key, /^[a-z-]+:[0-9a-f]{64}$/, 'no email or IP in clear');
+    }
   });
 });
 

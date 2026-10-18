@@ -14,10 +14,8 @@ import type { AppConfig, RateLimit } from '../config/app-config.js';
 import { APP_CONFIG } from '../config/config.module.js';
 import { AccountService } from './account.service.js';
 import { type AuthenticatedContext, AuthGuard, CurrentAuth } from './auth.guard.js';
-import { RateLimiter } from './rate-limiter.js';
+import { RATE_LIMITER_FACTORY, type RateLimiter, type RateLimiterFactory } from './rate-limiter.js';
 import { requestMeta } from './request-meta.js';
-
-const limiter = ({ limit, windowMs }: RateLimit): RateLimiter => new RateLimiter(limit, windowMs);
 
 @Controller('auth')
 export class AccountController {
@@ -28,11 +26,14 @@ export class AccountController {
   constructor(
     private readonly account: AccountService,
     @Inject(APP_CONFIG) config: AppConfig,
+    @Inject(RATE_LIMITER_FACTORY) createLimiter: RateLimiterFactory,
   ) {
     const limits = config.auth.rateLimits;
-    this.resetPerIp = limiter(limits.passwordResetPerIp);
-    this.resetPerAccount = limiter(limits.passwordResetPerAccount);
-    this.verificationPerUser = limiter(limits.verificationEmailPerUser);
+    const limiter = (name: string, { limit, windowMs }: RateLimit): RateLimiter =>
+      createLimiter(name, limit, windowMs);
+    this.resetPerIp = limiter('password-reset-ip', limits.passwordResetPerIp);
+    this.resetPerAccount = limiter('password-reset-account', limits.passwordResetPerAccount);
+    this.verificationPerUser = limiter('verification-email-user', limits.verificationEmailPerUser);
   }
 
   /** Sends (again) the verification email to the signed-in user. 204 also when already verified. */
@@ -44,7 +45,7 @@ export class AccountController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    this.limit(response, this.verificationPerUser, `user:${auth.userId}`);
+    await this.limit(response, this.verificationPerUser, `user:${auth.userId}`);
     await this.account.sendVerificationEmail(auth.userId, requestMeta(request));
   }
 
@@ -66,8 +67,8 @@ export class AccountController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     const meta = requestMeta(request);
-    this.limit(response, this.resetPerIp, `ip:${meta.ip}`);
-    this.limit(response, this.resetPerAccount, `account:${body.email.trim().toLowerCase()}`);
+    await this.limit(response, this.resetPerIp, `ip:${meta.ip}`);
+    await this.limit(response, this.resetPerAccount, `account:${body.email.trim().toLowerCase()}`);
     await this.account.requestPasswordReset(body.email, meta);
   }
 
@@ -79,12 +80,12 @@ export class AccountController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     const meta = requestMeta(request);
-    this.limit(response, this.resetPerIp, `ip:${meta.ip}`);
+    await this.limit(response, this.resetPerIp, `ip:${meta.ip}`);
     await this.account.confirmPasswordReset(body.token, body.newPassword, meta);
   }
 
-  private limit(response: Response, rateLimiter: RateLimiter, key: string): void {
-    const result = rateLimiter.consume(key);
+  private async limit(response: Response, rateLimiter: RateLimiter, key: string): Promise<void> {
+    const result = await rateLimiter.consume(key);
     if (!result.allowed) {
       response.setHeader('Retry-After', String(result.retryAfterSeconds));
       throw new HttpException('Too many attempts. Please wait and try again.', HttpStatus.TOO_MANY_REQUESTS);

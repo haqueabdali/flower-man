@@ -19,6 +19,8 @@ export interface AppConfig {
   readonly payments: PaymentsConfig;
   readonly push: PushConfig;
   readonly storage: StorageConfig;
+  /** memory: per process (one instance only). postgres: shared by every API instance. */
+  readonly rateLimitStore: 'memory' | 'postgres';
 }
 
 export interface CommerceConfig {
@@ -44,10 +46,20 @@ export interface PushConfig {
   readonly expoAccessToken: string | null;
 }
 
+export interface S3StorageConfig {
+  /** Base URL for S3-compatible services (R2, MinIO, Scaleway…), addressed path-style. Null: AWS virtual-hosted URLs. */
+  readonly endpoint: string | null;
+  readonly region: string;
+  readonly bucket: string;
+  readonly accessKeyId: string;
+  readonly secretAccessKey: string;
+}
+
 export interface StorageConfig {
-  /** local: files under storageDir (development; production check flags it). */
-  readonly driver: 'local';
+  /** local: files under localDir (development; refused in production). s3: S3-compatible object storage. */
+  readonly driver: 'local' | 's3';
   readonly localDir: string;
+  readonly s3: S3StorageConfig | null;
 }
 
 function parseCommerceConfig(env: NodeJS.ProcessEnv): CommerceConfig {
@@ -100,12 +112,60 @@ function parsePushConfig(env: NodeJS.ProcessEnv): PushConfig {
   };
 }
 
-function parseStorageConfig(env: NodeJS.ProcessEnv): StorageConfig {
+const S3_BUCKET = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+const S3_REGION = /^[a-z0-9-]{2,32}$/;
+
+function parseStorageConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): StorageConfig {
   const driver = env.STORAGE_DRIVER?.trim().toLowerCase() || 'local';
-  if (driver !== 'local') {
-    throw new ConfigError('STORAGE_DRIVER must be "local" (S3-compatible storage: see ADR-012).');
+  const localDir = env.STORAGE_LOCAL_DIR?.trim() || 'storage';
+  if (driver === 'local') {
+    if (nodeEnv === 'production') {
+      throw new ConfigError('STORAGE_DRIVER=local is not allowed in production. Use "s3".');
+    }
+    return { driver, localDir, s3: null };
   }
-  return { driver, localDir: env.STORAGE_LOCAL_DIR?.trim() || 'storage' };
+  if (driver !== 's3') {
+    throw new ConfigError('STORAGE_DRIVER must be "local" or "s3".');
+  }
+  const region = env.S3_REGION?.trim() || '';
+  const bucket = env.S3_BUCKET?.trim() || '';
+  const accessKeyId = env.S3_ACCESS_KEY_ID?.trim() || '';
+  const secretAccessKey = env.S3_SECRET_ACCESS_KEY?.trim() || '';
+  if (!S3_REGION.test(region)) {
+    throw new ConfigError('S3_REGION must be set (e.g. eu-south-1, or "auto" for Cloudflare R2).');
+  }
+  if (!S3_BUCKET.test(bucket)) {
+    throw new ConfigError('S3_BUCKET must be a valid bucket name.');
+  }
+  if (!accessKeyId || !secretAccessKey) {
+    throw new ConfigError('S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must be set for STORAGE_DRIVER=s3.');
+  }
+  const rawEndpoint = env.S3_ENDPOINT?.trim() || '';
+  let endpoint: string | null = null;
+  if (rawEndpoint) {
+    let url: URL;
+    try {
+      url = new URL(rawEndpoint);
+    } catch {
+      throw new ConfigError('S3_ENDPOINT must be a URL (e.g. https://<account>.r2.cloudflarestorage.com).');
+    }
+    if (url.username || url.password || url.search || url.hash) {
+      throw new ConfigError('S3_ENDPOINT must not contain credentials, a query or a fragment.');
+    }
+    if (url.protocol !== 'https:' && !(nodeEnv !== 'production' && url.protocol === 'http:')) {
+      throw new ConfigError('S3_ENDPOINT must use https (http is accepted outside production only).');
+    }
+    endpoint = url.toString().replace(/\/$/, '');
+  }
+  return { driver, localDir, s3: { endpoint, region, bucket, accessKeyId, secretAccessKey } };
+}
+
+function parseRateLimitStore(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AppConfig['rateLimitStore'] {
+  const store = env.RATE_LIMIT_STORE?.trim().toLowerCase() || (nodeEnv === 'production' ? 'postgres' : 'memory');
+  if (store !== 'memory' && store !== 'postgres') {
+    throw new ConfigError('RATE_LIMIT_STORE must be "memory" or "postgres".');
+  }
+  return store;
 }
 
 export interface MailConfig {
@@ -295,6 +355,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
     commerce: parseCommerceConfig(env),
     payments: parsePaymentsConfig(env, nodeEnv),
     push: parsePushConfig(env),
-    storage: parseStorageConfig(env),
+    storage: parseStorageConfig(env, nodeEnv),
+    rateLimitStore: parseRateLimitStore(env, nodeEnv),
   };
 }

@@ -28,8 +28,8 @@ Legend: ✅ verified on the developer machine · 🟡 implemented, not yet verif
 | 19 | Customer Mobile Completion    | 🟡     | Expo app: auth + email links, shop by location, cart, checkout, Stripe Payment Sheet / dev test payment, orders with live tracking, custom requests & offers, inbox, account deletion. Typechecks and bundles (Android, Hermes); not yet run on a device. |
 | 20 | Partner Mobile Completion     | 🟡     | Expo app: onboarding/verification, seller orders, products, custom request offers, courier jobs, background GPS (active delivery only), camera proof, earnings. Typechecks and bundles; not yet run on a device. |
 | 21 | Admin Completion              | 🟡     | Next.js 16 admin (BFF with httpOnly cookies): dashboard, partners, users, orders/refunds, deliveries/proof, custom requests, payments, payouts, zones, security/audit, privacy. Builds and runs on Linux. |
-| 22 | Security Hardening            | 🟡     | Built into each milestone (ADRs 4-13). Open: shared rate-limit store for multiple API instances; S3 storage driver. |
+| 22 | Security Hardening            | 🟡     | Built into each milestone (ADRs 4-15): S3-compatible storage driver and PostgreSQL-shared rate limits included. |
 | 23 | EAS/Native Configuration      | ⏳     | app.config.ts, eas.json, permissions and plugins ready. Needs YOU: `eas init` in both apps (real project IDs), push credentials. |
-| 24 | Production Configuration      | 🟡     | `.env.production.example` + `pnpm release:production-check` (fails until real values exist). |
+| 24 | Production Configuration      | 🟡     | `.env.production.example`, `pnpm release:production-check` (fails until real values exist), Docker images for API and admin (ADR-016). |
 | 25 | End-to-End Testing            | 🟡     | API end-to-end suite covers both spec scenarios (Linux). Device-level tests pending. |
-| 26 | Release                       | ⏳     | `pnpm release:check` and runbook ready. Builds need EAS projects, Stripe live keys, hosting. |
+| 26 | Release                       | ⏳     | `pnpm release:check`, GitHub Actions CI and runbook ready. Builds need EAS projects, Stripe live keys, hosting. |
