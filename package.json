@@ -15,13 +15,21 @@
     "test": "pnpm run build:core && pnpm --recursive run test",
     "test:integration": "pnpm run build:core && pnpm --recursive run test:integration",
     "dev:api": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run dev",
+    "dev:admin": "pnpm run build:core && pnpm --filter @flower-man/admin-web --fail-if-no-match run dev",
+    "dev:customer": "pnpm run build:core && pnpm --filter @flower-man/customer-mobile --fail-if-no-match run start:go",
+    "dev:partner": "pnpm run build:core && pnpm --filter @flower-man/partner-mobile --fail-if-no-match run start:go",
+    "build:admin": "pnpm run build:core && pnpm --filter @flower-man/admin-web --fail-if-no-match run build",
+    "build:api": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run build",
     "db:up": "docker compose -f infra/compose.yaml up -d --wait",
     "db:check": "docker compose -f infra/compose.yaml exec -T db psql -U flower_man -d flower_man -X -v ON_ERROR_STOP=1 -c \"SELECT current_database() AS database, current_user AS db_user, current_setting('server_version') AS postgres, (SELECT default_version FROM pg_available_extensions WHERE name = 'postgis') AS postgis_available, (SELECT extversion FROM pg_extension WHERE extname = 'postgis') AS postgis_installed, current_setting('TimeZone') AS timezone, datlocprovider AS locale_provider, datlocale AS locale FROM pg_database WHERE datname = current_database();\"",
     "db:status": "docker compose -f infra/compose.yaml ps --all",
-    "db:logs": "docker compose -f infra/compose.yaml logs --tail 100 db",
+    "db:logs": "docker compose -f infra/compose.yaml logs --tail 100",
     "db:down": "docker compose -f infra/compose.yaml down",
     "db:migrate": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate",
-    "db:migrate:status": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate:status"
+    "db:migrate:status": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate:status",
+    "bootstrap:platform-owner": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run bootstrap:platform-owner",
+    "release:check": "node scripts/release-check.mjs && pnpm run typecheck && pnpm run test",
+    "release:production-check": "pnpm run build:api && node scripts/production-check.mjs"
   },
   "devDependencies": {
     "typescript": "catalog:"

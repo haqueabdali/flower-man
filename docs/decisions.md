@@ -139,3 +139,135 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   `idle_in_transaction_session_timeout` 60s, client `query_timeout` 20s. The pool is closed on shutdown (SIGTERM/SIGINT).
 - `GET /api/v1/health` returns 200 `{status:"ok"}` or 503 `{status:"down"}` with `checks.database`, plus `Cache-Control: no-store`.
 - Input validation (shared schemas in `@flower-man/contracts`) arrives with the first endpoint that accepts input (Milestone 4b).
+
+## ADR-010: Identity and authentication (Milestone 4b)
+
+- Tables (`0002_identity.sql`):
+  - `users`: email unique case-insensitively via `email_normalized`; status `ACTIVE | SUSPENDED | DELETED`;
+  - `user_credentials`: password hash kept apart from profile data;
+  - `user_capabilities`: a user may hold several capabilities;
+  - `auth_sessions`: one per signed-in device;
+  - `auth_refresh_tokens`: SHA-256 hashes only;
+  - `security_events`: append-only, enforced by a trigger.
+- Passwords: scrypt from `node:crypto` (N=2^17, r=8, p=1, 16-byte salt, 64-byte key), with parameters stored in each hash.
+  The `argon2` package was not used because it needs a native install script (supply-chain rule in ADR-001).
+  Passwords are NFKC-normalized. Length is 10 to 128 characters. Unknown emails still run a dummy hash, so timing does not reveal accounts.
+- Tokens:
+  - access token: JWT HS256 via `jose` (iss `flower-man-api`, aud `flower-man`, `sub` = user, `sid` = session), 15 minutes,
+    sent as `Authorization: Bearer`. `AUTH_ACCESS_TOKEN_SECRET` must be at least 32 characters, and the `.env.example` value is refused in production;
+  - refresh token: opaque 256-bit random value, single use, rotated on every refresh. Replaying a used one revokes the whole session.
+    Sessions end 30 days after sign-in at the latest (refresh never extends them).
+- `AuthGuard` loads the session and user on **every** request (one query). Logout, suspension, revocation and capability changes
+  therefore apply immediately, not when the access token expires.
+- Authorization: `@UseGuards(AuthGuard)` + `@RequireCapabilities(...)` (any of the listed). It is enforced by the API only.
+- Registration grants `CUSTOMER`. Partner capabilities come with onboarding (Milestone 7); platform roles come from the
+  bootstrap (Milestone 5) or an admin.
+- Login responses: wrong password and unknown email both get the same 401. A suspended account gets 403 only after the correct password.
+  Registering an existing email gets 409, which deliberately reveals the email is taken: users need it to recover, and the rate limits cap probing.
+- Rate limits (in-memory, per API process): login 10 per account and 50 per IP per 15 minutes, registration 10 per IP per hour,
+  refresh 60 per IP per minute; over the limit gets 429 + `Retry-After`. **A shared store (PostgreSQL or Redis) is required
+  before running more than one API instance.**
+- Request bodies are validated with the shared zod schemas from `@flower-man/contracts` (`ZodBodyPipe`).
+  Unknown fields are rejected, which prevents mass assignment (e.g. sending `capabilities`).
+- Not in 4b: email verification and password recovery (Milestone 4c, see ADR-011),
+  account deletion requests (privacy milestone) and per-account lockout notifications.
+
+## ADR-011: Email verification and password recovery (Milestone 4c)
+
+- `auth_action_tokens` (`0003_account_recovery.sql`): single-use, 256-bit random tokens stored as SHA-256 hashes,
+  each with a purpose (`EMAIL_VERIFICATION`, valid 24h; `PASSWORD_RESET`, valid 30 min) and the address it was sent to.
+  Issuing a new token invalidates older unused ones of the same purpose. A token of one purpose never works for the other.
+- Emails contain links `${EMAIL_LINK_BASE_URL}/verify-email?token=…` and `/reset-password?token=…`. The apps / web page
+  will handle these paths (deep links come with the mobile milestones). Until then the token can be posted to the API directly.
+- Registration sends the verification email automatically. Signing in does not require a verified email: features that
+  need it (e.g. checkout) will check `emailVerified`.
+- Password reset:
+  - `request` always answers 202, does nothing for unknown or suspended accounts, and sends in the background
+    (the response time does not reveal whether the account exists);
+  - `confirm` sets the new password, revokes every session (`PASSWORD_CHANGED`), invalidates other reset links
+    and marks the email verified (the link proves mailbox control).
+- Mail transport (`MAIL_TRANSPORT`):
+  - `smtp` (nodemailer; `SMTP_URL`): required in production;
+  - `log` (prints emails, development only; refused in production because it would log reset links);
+  - `memory` (tests only).
+  Locally, `infra/compose.yaml` runs Mailpit (SMTP 127.0.0.1:1025, inbox http://localhost:8025).
+- Rate limits: reset requests 20 per IP and 5 per account per hour; verification re-sends 5 per user per hour.
+- Security events: `EMAIL_VERIFICATION_SENT`, `EMAIL_VERIFIED`, `PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_COMPLETED`.
+
+## ADR-012: Marketplace core (Milestones 5–18)
+
+- **Platform Owner:** `pnpm bootstrap:platform-owner` reads `PLATFORM_OWNER_EMAIL/PASSWORD/NAME`. It is idempotent: it creates the account
+  or promotes an existing one, and never changes the password unless `PLATFORM_OWNER_RESET_PASSWORD=true`.
+  Only a PLATFORM_OWNER can grant or remove platform roles. Admin actions go to the append-only `audit_log`.
+- **Service zones:** PostGIS `MultiPolygon` per zone, with an active flag and delivery fee. Bergamo is seeded as `IT-BG-BERGAMO`
+  (approximate envelope, replaceable through `PATCH /admin/zones/:id` with GeoJSON). Points are matched with `ST_Covers`.
+- **Partners:**
+  - one `partner_accounts` table, with kind `SHOP | FREELANCE_SELLER | COURIER`. A freelance seller needs no shop;
+    shops and freelancers share the commerce tables as "sellers" without being the same entity;
+  - verification goes `DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED | REJECTED`, with `SUSPENDED` after approval.
+    Approval grants the matching capability. Onboarding endpoints only need sign-in, so unapproved partners are never locked out;
+  - selling or delivering requires `APPROVED`, re-checked on every request.
+- **Orders:** the state machine is in `@flower-man/domain`. Every change goes through `transitionOrder`, which appends to
+  `order_status_history`. Unpaid orders are invisible to sellers. Checkout recomputes all amounts from database prices,
+  requires a verified email, and enforces one seller per cart, the zone and stock.
+- **Payments:** a provider abstraction:
+  - `simulated` for development and tests; refused in production;
+  - `stripe`: a PaymentIntent with idempotency key `order-<id>`. Success comes **only** from the signature-verified webhook
+    (raw body, `STRIPE_WEBHOOK_SECRET`), and events are de-duplicated in `payment_events`;
+  - refunds are idempotent too. A payment that arrives after the order expired is refunded automatically.
+- **Delivery:** a job is OFFERED when the seller marks the order ready. The first courier to accept wins (conditional UPDATE).
+  Pickup, transit, arrival, proof and completion are courier-only and checked by the state machine. GPS is accepted only while
+  ASSIGNED, PICKED_UP or IN_TRANSIT, for the assigned courier. ETA = distance / 18 km/h. The GPS trail is purged 30 days after delivery.
+- **Proof:** a raw JPEG/PNG/WebP upload (≤ 8 MB, checked by magic bytes), stored through `ObjectStorage` with SHA-256 and optional GPS metadata.
+  Completion requires proof; a database constraint enforces it too. Only the `local` driver exists today. An S3-compatible driver
+  must be added before production (`release:production-check` flags `STORAGE_DRIVER=local`).
+- **Earnings:** an append-only `ledger_entries` table, signed cents:
+  - on delivery, the seller gets ORDER_REVENUE (+subtotal) and PLATFORM_COMMISSION (−commission), and the courier gets DELIVERY_FEE;
+  - a partial unique index makes earnings impossible to record twice;
+  - refunds after delivery add a REFUND_ADJUSTMENT (capped at what the seller earned on the order);
+  - a trigger allows only `settlement_id` to change: attach while unsettled, detach only from a FAILED settlement.
+- **Settlements:** `CREATED → PROCESSING → PAID` (bank or provider reference required), or `FAILED`, which makes the entries payable again.
+  Creation locks the partner's unsettled entries, so concurrent requests cannot settle the same entry twice. Payouts are recorded
+  manually today; Stripe Connect or SEPA can later drive the same transitions.
+- **Notifications:** every event is stored in the in-app inbox (`/me/notifications`). Expo push is best effort and needs `PUSH_ENABLED=true`;
+  tokens reported as `DeviceNotRegistered` are deleted.
+- **Privacy:** `POST /me/deletion-request`. An admin completes it, which anonymises the user and removes credentials, devices and cart
+  while keeping bookkeeping records. Couriers' locations are stored only during active deliveries.
+- **Maintenance** (every minute, idempotent): expire unpaid orders and release their stock, expire custom requests, purge old GPS points.
+
+## ADR-013: Admin web app (Milestone 21)
+
+- Next.js 16 (App Router) in `apps/admin-web` on port 3000. Run it with `pnpm dev:admin`, build it with `pnpm build:admin` (`output: 'standalone'`).
+- **Backend-for-frontend:** the browser never holds API tokens.
+  - `POST /api/session` signs in through the API and refuses non-admin accounts. The access and refresh tokens are stored
+    in `httpOnly`, `SameSite=Strict` cookies (`Secure` in production).
+  - `/api/proxy/*` forwards only `admin/*` and `auth/me` to the API with the bearer token, and refreshes the session transparently.
+  - Every state-changing request needs the `x-flowerman-admin: 1` header. Browsers cannot send it cross-site without a CORS preflight,
+    and the admin app never grants one.
+- Server-only setting: `ADMIN_API_URL` (default `http://127.0.0.1:4000`).
+- Security headers: CSP, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and no `X-Powered-By`.
+- All business rules live in the API. The admin UI only calls protected endpoints.
+
+## ADR-014: Mobile apps (Milestones 19, 20, 23)
+
+- Two separate Expo SDK 57 apps (React Native 0.86.3, React 19.2.3). Versions come from the SDK's own bundled
+  version map (`expo install`, offline mode when the network is restricted). Each app has its own configuration:
+  - customer app: `it.flowerman.customer`, scheme `flowerman`;
+  - partner app: `it.flowerman.partner`, scheme `flowermanpartner`.
+  Each needs its own EAS project, created with `eas init` and never invented; the ID is set in `EXPO_PUBLIC_EAS_PROJECT_ID`.
+- Both apps use `@flower-man/api-client`. Tokens are stored with `expo-secure-store` (keychain/keystore), and refreshes are serialised
+  because refresh tokens are single use.
+- Navigation is a small in-app stack with tabs, which avoids extra native dependencies. Deep links `…/verify-email?token=` and
+  `…/reset-password?token=` open the matching screens.
+- Customer app:
+  - location is foreground only, and `ACCESS_BACKGROUND_LOCATION` is explicitly blocked;
+  - payment uses the Stripe Payment Sheet (`@stripe/stripe-react-native`) with the PaymentIntent client secret.
+    The order becomes PAID only through the server webhook. The simulated "test payment" button exists only in `__DEV__` builds.
+- Partner app (one app for all partner kinds; features depend on approved accounts):
+  - background location uses `expo-location` + `expo-task-manager` and starts only for an accepted delivery,
+    with a visible foreground-service notification on Android;
+  - it stops on completion, release or sign-out, and when the API answers 409 (delivery no longer active);
+  - proof photos are taken with `expo-image-picker` (camera only) and uploaded as raw bytes.
+- Push: `expo-notifications` registers the Expo token when the app runs on a device with a project ID. Expo Go cannot test remote push.
+- Verified so far: both apps typecheck and bundle for Android (`expo export`, Hermes). Device testing needs the steps in docs/runbook.md.
+- Known peer warning: `@expo/router-server` (web only) pulls `react-dom@19.2.9` as an auto-installed peer. It does not affect native builds.

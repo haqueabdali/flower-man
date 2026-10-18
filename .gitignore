@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 dist-test/
+dist-export/
 build/
 out/
 *.tsbuildinfo
@@ -11,7 +12,6 @@ coverage/
 
 # Next.js
 .next/
-next-env.d.ts
 
 # Expo / React Native
 .expo/

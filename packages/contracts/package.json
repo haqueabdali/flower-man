@@ -22,5 +22,9 @@
   },
   "devDependencies": {
     "typescript": "catalog:"
+  },
+  "dependencies": {
+    "@flower-man/domain": "workspace:*",
+    "zod": "^4.6.6"
   }
 }

@@ -3,20 +3,22 @@
 Flower marketplace and delivery platform, launching first in **Bergamo (BG), Italy**.
 It connects customers, flower shops, freelance flower sellers, couriers and platform administrators.
 
-> Status: **Milestone 4a: API Foundation**. See [docs/milestones.md](docs/milestones.md).
+> Status: MVP feature-complete in code. See [docs/milestones.md](docs/milestones.md) for what is verified and what is pending,
+> [docs/runbook.md](docs/runbook.md) for setup, EAS, deployment and rollback, and [docs/decisions.md](docs/decisions.md) for the architecture. See [docs/milestones.md](docs/milestones.md).
 
 ## Repository layout
 
 ```text
 apps/
-  api/               REST API (NestJS 12) + database migration CLI
-  admin-web/         Admin web app (Next.js). Placeholder for now
-  customer-mobile/   Customer app (Expo). Placeholder for now
-  partner-mobile/    Partner app for shops, freelance sellers and couriers (Expo). Placeholder for now
+  api/               REST API (NestJS 12) + migration CLI + platform owner bootstrap
+  admin-web/         Admin web app (Next.js 16)
+  customer-mobile/   Customer app (Expo SDK 57)
+  partner-mobile/    Partner app for shops, freelance sellers and couriers (Expo SDK 57)
 packages/
   contracts/         API contracts shared by every app
   domain/            Framework-independent domain types and rules
   security/          Shared security primitives (no secrets)
+  api-client/        Typed API client used by both mobile apps
 infra/               Local infrastructure (compose.yaml: PostgreSQL 17 + PostGIS)
   database/migrations/ Numbered SQL migrations (applied by pnpm db:migrate)
 scripts/             Repository tooling scripts
@@ -57,7 +59,25 @@ pnpm dev:api            # API on http://127.0.0.1:4000/api/v1 (reloads on change
 curl http://127.0.0.1:4000/api/v1/health
 ```
 
-If you already have a `.env` from an earlier milestone, copy the new API lines from `.env.example` into it.
+If you already have a `.env` from an earlier milestone, copy the new lines from `.env.example` into it
+(`AUTH_ACCESS_TOKEN_SECRET` is required from Milestone 4b).
+
+## API endpoints so far
+
+| Method | Path                    | Auth   | Purpose                                  |
+|--------|-------------------------|--------|------------------------------------------|
+| GET    | `/api/v1/health`        | public | Liveness + database check                |
+| POST   | `/api/v1/auth/register` | public | Customer sign-up → tokens                |
+| POST   | `/api/v1/auth/login`    | public | Email + password → tokens                |
+| POST   | `/api/v1/auth/refresh`  | public | Single-use refresh token → new tokens    |
+| POST   | `/api/v1/auth/logout`   | bearer | Ends this session                        |
+| GET    | `/api/v1/auth/me`       | bearer | Current user and capabilities            |
+| POST   | `/api/v1/auth/email-verification/request` | bearer | Send the verification email again |
+| POST   | `/api/v1/auth/email-verification/confirm` | public | `{ token }` from the email link    |
+| POST   | `/api/v1/auth/password-reset/request`     | public | `{ email }`; always 202             |
+| POST   | `/api/v1/auth/password-reset/confirm`     | public | `{ token, newPassword }`; signs out all sessions |
+
+Development emails land in Mailpit: http://localhost:8025 (started by `pnpm db:up`).
 
 ## Root scripts
 

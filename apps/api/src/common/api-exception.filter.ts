@@ -1,4 +1,5 @@
 import type { ApiErrorCode, ApiErrorResponse } from '@flower-man/contracts';
+import { TransitionError } from '@flower-man/domain';
 import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
@@ -50,6 +51,10 @@ export function describeError(exception: unknown): DescribedError {
 }
 
 function describeRaw(exception: unknown): { status: number; message: string } {
+  // A state-machine rule refused the change (e.g. confirming an unpaid order): the request conflicts with current state.
+  if (exception instanceof TransitionError) {
+    return { status: HttpStatus.CONFLICT, message: exception.message };
+  }
   if (exception instanceof HttpException) {
     const status = exception.getStatus();
     if (status >= 500 && status !== HttpStatus.SERVICE_UNAVAILABLE) {

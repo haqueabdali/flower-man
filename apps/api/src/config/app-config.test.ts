@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { loadAppConfig } from './app-config.js';
+import { EXAMPLE_ACCESS_TOKEN_SECRET, loadAppConfig } from './app-config.js';
 import { ConfigError } from './config-error.js';
 
 const BASE: NodeJS.ProcessEnv = {
   DATABASE_URL: 'postgresql://flower_man:flower_man@127.0.0.1:55432/flower_man',
   DATABASE_SSL: 'false',
+  AUTH_ACCESS_TOKEN_SECRET: EXAMPLE_ACCESS_TOKEN_SECRET,
 };
 
 describe('loadAppConfig', () => {
@@ -52,6 +53,13 @@ describe('loadAppConfig', () => {
     ['TRUST_PROXY text', { TRUST_PROXY: 'yes' }, /TRUST_PROXY must be a whole number/],
     ['TRUST_PROXY too high', { TRUST_PROXY: '11' }, /TRUST_PROXY must be a whole number/],
     ['missing database settings', { DATABASE_URL: '' }, /DATABASE_URL is not set/],
+    ['missing access token secret', { AUTH_ACCESS_TOKEN_SECRET: '' }, /AUTH_ACCESS_TOKEN_SECRET must be set/],
+    ['short access token secret', { AUTH_ACCESS_TOKEN_SECRET: 'x'.repeat(31) }, /at least 32/],
+    [
+      'example access token secret in production',
+      { NODE_ENV: 'production', DATABASE_SSL: 'true' },
+      /still has the .env.example value/,
+    ],
   ];
 
   for (const [label, overrides, message] of invalid) {
