@@ -16,6 +16,8 @@
     "test:integration": "pnpm run build:core && pnpm --recursive run test:integration",
     "dev:api": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run dev",
     "dev:admin": "pnpm run build:core && pnpm --filter @flower-man/admin-web --fail-if-no-match run dev",
+    "dev:customer": "pnpm run build:core && pnpm --filter @flower-man/customer-mobile --fail-if-no-match run start:go",
+    "dev:partner": "pnpm run build:core && pnpm --filter @flower-man/partner-mobile --fail-if-no-match run start:go",
     "build:admin": "pnpm run build:core && pnpm --filter @flower-man/admin-web --fail-if-no-match run build",
     "build:api": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run build",
     "db:up": "docker compose -f infra/compose.yaml up -d --wait",
@@ -25,7 +27,9 @@
     "db:down": "docker compose -f infra/compose.yaml down",
     "db:migrate": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate",
     "db:migrate:status": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate:status",
-    "bootstrap:platform-owner": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run bootstrap:platform-owner"
+    "bootstrap:platform-owner": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run bootstrap:platform-owner",
+    "release:check": "node scripts/release-check.mjs && pnpm run typecheck && pnpm run test",
+    "release:production-check": "pnpm run build:api && node scripts/production-check.mjs"
   },
   "devDependencies": {
     "typescript": "catalog:"

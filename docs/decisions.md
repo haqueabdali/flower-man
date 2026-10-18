@@ -247,3 +247,27 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - Server-only setting: `ADMIN_API_URL` (default `http://127.0.0.1:4000`).
 - Security headers: CSP, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and no `X-Powered-By`.
 - All business rules live in the API. The admin UI only calls protected endpoints.
+
+## ADR-014: Mobile apps (Milestones 19, 20, 23)
+
+- Two separate Expo SDK 57 apps (React Native 0.86.3, React 19.2.3). Versions come from the SDK's own bundled
+  version map (`expo install`, offline mode when the network is restricted). Each app has its own configuration:
+  - customer app: `it.flowerman.customer`, scheme `flowerman`;
+  - partner app: `it.flowerman.partner`, scheme `flowermanpartner`.
+  Each needs its own EAS project, created with `eas init` and never invented; the ID is set in `EXPO_PUBLIC_EAS_PROJECT_ID`.
+- Both apps use `@flower-man/api-client`. Tokens are stored with `expo-secure-store` (keychain/keystore), and refreshes are serialised
+  because refresh tokens are single use.
+- Navigation is a small in-app stack with tabs, which avoids extra native dependencies. Deep links `…/verify-email?token=` and
+  `…/reset-password?token=` open the matching screens.
+- Customer app:
+  - location is foreground only, and `ACCESS_BACKGROUND_LOCATION` is explicitly blocked;
+  - payment uses the Stripe Payment Sheet (`@stripe/stripe-react-native`) with the PaymentIntent client secret.
+    The order becomes PAID only through the server webhook. The simulated "test payment" button exists only in `__DEV__` builds.
+- Partner app (one app for all partner kinds; features depend on approved accounts):
+  - background location uses `expo-location` + `expo-task-manager` and starts only for an accepted delivery,
+    with a visible foreground-service notification on Android;
+  - it stops on completion, release or sign-out, and when the API answers 409 (delivery no longer active);
+  - proof photos are taken with `expo-image-picker` (camera only) and uploaded as raw bytes.
+- Push: `expo-notifications` registers the Expo token when the app runs on a device with a project ID. Expo Go cannot test remote push.
+- Verified so far: both apps typecheck and bundle for Android (`expo export`, Hermes). Device testing needs the steps in docs/runbook.md.
+- Known peer warning: `@expo/router-server` (web only) pulls `react-dom@19.2.9` as an auto-installed peer. It does not affect native builds.

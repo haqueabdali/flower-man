@@ -25,11 +25,11 @@ Legend: ✅ verified on the developer machine · 🟡 implemented, not yet verif
 | 16 | Notifications                 | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
 | 17 | Earnings                      | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
 | 18 | Payout Settlements            | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
-| 19 | Customer Mobile Completion    | ⏳     | |
-| 20 | Partner Mobile Completion     | ⏳     | |
+| 19 | Customer Mobile Completion    | 🟡     | Expo app: auth + email links, shop by location, cart, checkout, Stripe Payment Sheet / dev test payment, orders with live tracking, custom requests & offers, inbox, account deletion. Typechecks and bundles (Android, Hermes); not yet run on a device. |
+| 20 | Partner Mobile Completion     | 🟡     | Expo app: onboarding/verification, seller orders, products, custom request offers, courier jobs, background GPS (active delivery only), camera proof, earnings. Typechecks and bundles; not yet run on a device. |
 | 21 | Admin Completion              | 🟡     | Next.js 16 admin (BFF with httpOnly cookies): dashboard, partners, users, orders/refunds, deliveries/proof, custom requests, payments, payouts, zones, security/audit, privacy. Builds and runs on Linux. |
-| 22 | Security Hardening            | ⏳     | |
-| 23 | EAS/Native Configuration      | ⏳     | |
-| 24 | Production Configuration      | ⏳     | |
-| 25 | End-to-End Testing            | ⏳     | |
-| 26 | Release                       | ⏳     | |
+| 22 | Security Hardening            | 🟡     | Built into each milestone (ADRs 4-13). Open: shared rate-limit store for multiple API instances; S3 storage driver. |
+| 23 | EAS/Native Configuration      | ⏳     | app.config.ts, eas.json, permissions and plugins ready. Needs YOU: `eas init` in both apps (real project IDs), push credentials. |
+| 24 | Production Configuration      | 🟡     | `.env.production.example` + `pnpm release:production-check` (fails until real values exist). |
+| 25 | End-to-End Testing            | 🟡     | API end-to-end suite covers both spec scenarios (Linux). Device-level tests pending. |
+| 26 | Release                       | ⏳     | `pnpm release:check` and runbook ready. Builds need EAS projects, Stripe live keys, hosting. |

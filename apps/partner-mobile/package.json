@@ -2,14 +2,36 @@
   "name": "@flower-man/partner-mobile",
   "version": "0.0.0",
   "private": true,
-  "description": "Flower Man partner app for shops, freelance sellers and couriers (Expo). Placeholder until the partner app milestone.",
+  "description": "Flower Man partner app for shops, freelance sellers and couriers (Expo).",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "start": "expo start --dev-client",
+    "start:go": "expo start",
+    "android": "expo start --android",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "export:check": "expo export --platform android --output-dir dist-export",
+    "eas-build-post-install": "pnpm --dir ../.. run build:core"
   },
   "dependencies": {
-    "@flower-man/contracts": "workspace:*"
+    "@flower-man/api-client": "workspace:*",
+    "@flower-man/contracts": "workspace:*",
+    "expo": "~57.0.30",
+    "expo-constants": "~57.0.22",
+    "expo-device": "~57.0.2",
+    "expo-image-picker": "~57.0.20",
+    "expo-linking": "~57.0.13",
+    "expo-location": "~57.0.21",
+    "expo-notifications": "~57.0.23",
+    "expo-secure-store": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "expo-task-manager": "~57.0.21",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0"
   },
   "devDependencies": {
+    "@types/react": "~19.2.18",
     "typescript": "catalog:"
-  }
+  },
+  "main": "index.ts"
 }

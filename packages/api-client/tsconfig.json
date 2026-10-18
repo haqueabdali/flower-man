@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.package.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // fetch/Response types (available in React Native, browsers and Node 18+).
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src"]
+}
