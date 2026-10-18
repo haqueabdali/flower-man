@@ -27,7 +27,7 @@ Legend: ✅ verified on the developer machine · 🟡 implemented, not yet verif
 | 18 | Payout Settlements            | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
 | 19 | Customer Mobile Completion    | ⏳     | |
 | 20 | Partner Mobile Completion     | ⏳     | |
-| 21 | Admin Completion              | ⏳     | |
+| 21 | Admin Completion              | 🟡     | Next.js 16 admin (BFF with httpOnly cookies): dashboard, partners, users, orders/refunds, deliveries/proof, custom requests, payments, payouts, zones, security/audit, privacy. Builds and runs on Linux. |
 | 22 | Security Hardening            | ⏳     | |
 | 23 | EAS/Native Configuration      | ⏳     | |
 | 24 | Production Configuration      | ⏳     | |

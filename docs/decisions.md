@@ -234,3 +234,16 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - **Privacy:** `POST /me/deletion-request`. An admin completes it, which anonymises the user and removes credentials, devices and cart
   while keeping bookkeeping records. Couriers' locations are stored only during active deliveries.
 - **Maintenance** (every minute, idempotent): expire unpaid orders and release their stock, expire custom requests, purge old GPS points.
+
+## ADR-013: Admin web app (Milestone 21)
+
+- Next.js 16 (App Router) in `apps/admin-web` on port 3000. Run it with `pnpm dev:admin`, build it with `pnpm build:admin` (`output: 'standalone'`).
+- **Backend-for-frontend:** the browser never holds API tokens.
+  - `POST /api/session` signs in through the API and refuses non-admin accounts. The access and refresh tokens are stored
+    in `httpOnly`, `SameSite=Strict` cookies (`Secure` in production).
+  - `/api/proxy/*` forwards only `admin/*` and `auth/me` to the API with the bearer token, and refreshes the session transparently.
+  - Every state-changing request needs the `x-flowerman-admin: 1` header. Browsers cannot send it cross-site without a CORS preflight,
+    and the admin app never grants one.
+- Server-only setting: `ADMIN_API_URL` (default `http://127.0.0.1:4000`).
+- Security headers: CSP, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and no `X-Powered-By`.
+- All business rules live in the API. The admin UI only calls protected endpoints.

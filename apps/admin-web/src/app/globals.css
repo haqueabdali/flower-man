@@ -1,0 +1,33 @@
+:root { --bg: #f7f5f2; --card: #fff; --ink: #1f2328; --muted: #6b7280; --line: #e5e1dc; --brand: #b5446e; --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+.layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+.sidebar { background: #2b1d24; color: #fff; padding: 16px; display: flex; flex-direction: column; gap: 2px; }
+.sidebar a, .sidebar .link { color: #e9dce2; text-decoration: none; padding: 7px 10px; border-radius: 6px; text-align: left; }
+.sidebar a.active, .sidebar a:hover { background: #4a3240; color: #fff; }
+.brand { font-weight: 700; font-size: 18px; margin-bottom: 16px; display: flex; flex-direction: column; }
+.brand small { font-weight: 400; color: #c9a7b6; font-size: 12px; }
+main { padding: 24px; display: flex; flex-direction: column; gap: 16px; max-width: 1400px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+h1, h2 { margin: 0; } h2 { font-size: 16px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.stat b { display: block; font-size: 24px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+button, select, input, textarea { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+button { cursor: pointer; background: var(--brand); color: #fff; border-color: var(--brand); }
+button.secondary { background: #fff; color: var(--ink); border-color: var(--line); }
+button.danger { background: var(--bad); border-color: var(--bad); }
+button.link { background: none; border: none; cursor: pointer; }
+.muted { color: var(--muted); } .error { color: var(--bad); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #eee; white-space: nowrap; }
+.badge-approved, .badge-paid, .badge-delivered, .badge-succeeded, .badge-active, .badge-ok { background: #dafbe1; color: var(--ok); }
+.badge-submitted, .badge-under_review, .badge-processing, .badge-pending_payment, .badge-offered, .badge-open, .badge-pending { background: #fff8c5; color: var(--warn); }
+.badge-rejected, .badge-suspended, .badge-failed, .badge-cancelled, .badge-refunded, .badge-down { background: #ffebe9; color: var(--bad); }
+.login { max-width: 360px; margin: 12vh auto; display: flex; flex-direction: column; gap: 10px; }
+textarea { width: 100%; min-height: 120px; font-family: ui-monospace, monospace; font-size: 12px; }

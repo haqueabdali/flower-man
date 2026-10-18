@@ -3,14 +3,24 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Flower Man admin web app (Next.js). Placeholder until the admin milestone.",
+  "description": "Flower Man admin web app (Next.js).",
   "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@flower-man/contracts": "workspace:*"
+    "@flower-man/contracts": "workspace:*",
+    "@flower-man/domain": "workspace:*",
+    "next": "^16.4.2",
+    "react": "~19.2.9",
+    "react-dom": "~19.2.9"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "~19.2.18",
+    "@types/react-dom": "~19.2.7",
     "typescript": "catalog:"
   }
 }
