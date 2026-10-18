@@ -70,9 +70,11 @@ The `eas-build-post-install` script builds the shared packages (`pnpm build:core
    `node apps/api/dist/database/migrate.js up --dir infra/database/migrations`.
    It is safe to run from several instances at once, because an advisory lock serialises the runs.
 5. Run the bootstrap once: `node apps/api/dist/cli/bootstrap-platform-owner.js`. It is idempotent.
-6. In the Stripe dashboard, add a webhook to `https://<api>/api/v1/payments/stripe/webhook` for
+6. Object storage: create a **private** bucket and an access key limited to `PutObject`/`GetObject` on it.
+   Put the values in `S3_*` (see `.env.production.example`).
+7. In the Stripe dashboard, add a webhook to `https://<api>/api/v1/payments/stripe/webhook` for
    `payment_intent.succeeded` and `payment_intent.payment_failed`. Put its signing secret in `STRIPE_WEBHOOK_SECRET`.
-7. Mobile: `npx eas-cli build --profile production --platform android` (and `ios`), then `npx eas-cli submit`.
+8. Mobile: `npx eas-cli build --profile production --platform android` (and `ios`), then `npx eas-cli submit`.
 
 ## 4. Migrations: rules and rollback
 

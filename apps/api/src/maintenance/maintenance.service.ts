@@ -35,7 +35,7 @@ export class MaintenanceService implements OnApplicationBootstrap, OnApplication
     clearInterval(this.timer);
   }
 
-  async runOnce(): Promise<{ expiredOrders: number; expiredRequests: number; purgedLocations: number }> {
+  async runOnce(): Promise<{ expiredOrders: number; expiredRequests: number; purgedLocations: number; purgedRateLimits: number }> {
     const stale = await this.pool.query<{ id: string }>(
       `SELECT id FROM orders WHERE status = 'PENDING_PAYMENT' AND created_at < now() - make_interval(mins => $1) LIMIT 100`,
       [this.config.commerce.unpaidOrderTtlMinutes],
@@ -56,6 +56,12 @@ export class MaintenanceService implements OnApplicationBootstrap, OnApplication
           AND l.received_at < now() - make_interval(days => $1)`,
       [LOCATION_RETENTION_DAYS],
     );
-    return { expiredOrders, expiredRequests: requests.rowCount ?? 0, purgedLocations: locations.rowCount ?? 0 };
+    const rateLimits = await this.pool.query(`DELETE FROM rate_limit_windows WHERE reset_at < now() - interval '1 minute'`);
+    return {
+      expiredOrders,
+      expiredRequests: requests.rowCount ?? 0,
+      purgedLocations: locations.rowCount ?? 0,
+      purgedRateLimits: rateLimits.rowCount ?? 0,
+    };
   }
 }

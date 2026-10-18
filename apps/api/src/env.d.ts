@@ -25,6 +25,12 @@ declare global {
       readonly EXPO_ACCESS_TOKEN?: string;
       readonly STORAGE_DRIVER?: string;
       readonly STORAGE_LOCAL_DIR?: string;
+      readonly S3_ENDPOINT?: string;
+      readonly S3_REGION?: string;
+      readonly S3_BUCKET?: string;
+      readonly S3_ACCESS_KEY_ID?: string;
+      readonly S3_SECRET_ACCESS_KEY?: string;
+      readonly RATE_LIMIT_STORE?: string;
       readonly PLATFORM_OWNER_EMAIL?: string;
       readonly PLATFORM_OWNER_PASSWORD?: string;
       readonly PLATFORM_OWNER_NAME?: string;

@@ -30,6 +30,8 @@ try {
   check(config.push.enabled, 'PUSH_ENABLED=true');
   check(config.trustProxy !== false, 'TRUST_PROXY set to the number of proxies in front of the API');
   check(config.corsOrigins.length > 0, 'CORS_ORIGINS lists the admin origin(s)');
+  check(config.storage.driver === 's3', 'STORAGE_DRIVER=s3 (S3-compatible object storage, not local disk)');
+  check(config.rateLimitStore === 'postgres', 'RATE_LIMIT_STORE=postgres (shared by every API instance)');
 } catch (error) {
   check(false, `API configuration: ${error.message}`);
 }
@@ -48,7 +50,6 @@ check(/^whsec_/.test(env.STRIPE_WEBHOOK_SECRET ?? ''), 'STRIPE_WEBHOOK_SECRET is
 check(/^smtps:\/\/[^:]+:[^@]+@/.test(env.SMTP_URL ?? '') || /^smtp:\/\/[^:]+:[^@]+@/.test(env.SMTP_URL ?? ''), 'SMTP_URL includes credentials');
 check(/@/.test(env.MAIL_FROM ?? '') && !/localhost/.test(env.MAIL_FROM ?? ''), 'MAIL_FROM is a real sender address');
 check(isHttps(env.EMAIL_LINK_BASE_URL), 'EMAIL_LINK_BASE_URL uses https');
-check(env.STORAGE_DRIVER !== undefined && env.STORAGE_DRIVER !== 'local', 'STORAGE_DRIVER is object storage (S3-compatible), not local disk');
 check(isHttps(env.ADMIN_API_URL), 'ADMIN_API_URL (admin web → API) uses https');
 check(Boolean(env.PLATFORM_OWNER_EMAIL), 'PLATFORM_OWNER_EMAIL is set for the bootstrap');
 
