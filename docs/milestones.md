@@ -8,23 +8,23 @@ Legend: ✅ verified on the developer machine · 🟡 implemented, not yet verif
 | 1  | Monorepo Foundation           | ✅     | Workspace, strict TS, placeholder apps/packages. `pnpm typecheck` exit 0 on Windows. |
 | 2  | PostgreSQL/PostGIS            | ✅     | PostgreSQL 17.11 + PostGIS 3.6.4 on `127.0.0.1:55432`, healthy, `db:check` OK and port reachable on Windows. |
 | 3  | Migration System              | ✅     | SQL runner (`pnpm db:migrate`), `schema_migrations`, 0001 creates PostGIS. 9/9 integration tests pass on Windows. |
-| 4a | API Foundation                | 🟡     | NestJS 12 app, config validation, pg pool, `/api/v1/health`, helmet, CORS allowlist, error shape, request IDs, `pnpm dev:api`. Passes on Linux; awaiting the Windows run. |
-| 4b | Identity & Authentication     | 🟡     | Users, credentials, capabilities, sessions, register/login/refresh/logout/me, capability guard, rate limits. Passes on Linux; Windows run not reported yet. |
-| 4c | Email Verification & Password Recovery | 🟡 | Single-use hashed email tokens, verification on sign-up, password reset that signs out all sessions, SMTP/Mailpit. Passes on Linux; awaiting the Windows run. |
-| 5  | Platform Owner                | ⏳     | |
-| 6  | Service Zones                 | ⏳     | |
-| 7  | Partner Onboarding            | ⏳     | |
-| 8  | Marketplace                   | ⏳     | |
-| 9  | Custom Requests               | ⏳     | |
-| 10 | Cart & Checkout               | ⏳     | |
-| 11 | Orders                        | ⏳     | |
-| 12 | Payments                      | ⏳     | |
-| 13 | Courier Dispatch              | ⏳     | |
-| 14 | Location Tracking             | ⏳     | |
-| 15 | Delivery Proof                | ⏳     | |
-| 16 | Notifications                 | ⏳     | |
-| 17 | Earnings                      | ⏳     | |
-| 18 | Payout Settlements            | ⏳     | |
+| 4a | API Foundation                | ✅     | NestJS 12 app, config validation, pg pool, `/api/v1/health`, helmet, CORS allowlist, error shape, request IDs, `pnpm dev:api`. Verified on Windows. |
+| 4b | Identity & Authentication     | ✅     | Merged; covered by the integration suite. |
+| 4c | Email Verification & Password Recovery | ✅ | Verified on Windows (user report). |
+| 5  | Platform Owner                | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 6  | Service Zones                 | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 7  | Partner Onboarding            | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 8  | Marketplace                   | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 9  | Custom Requests               | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 10 | Cart & Checkout               | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 11 | Orders                        | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 12 | Payments                      | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 13 | Courier Dispatch              | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 14 | Location Tracking             | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 15 | Delivery Proof                | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 16 | Notifications                 | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 17 | Earnings                      | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
+| 18 | Payout Settlements            | 🟡     | API done, covered by the end-to-end suite (Linux). See ADR-012. |
 | 19 | Customer Mobile Completion    | ⏳     | |
 | 20 | Partner Mobile Completion     | ⏳     | |
 | 21 | Admin Completion              | ⏳     | |

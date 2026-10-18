@@ -15,6 +15,97 @@ export interface AppConfig {
   readonly database: DatabaseConfig;
   readonly auth: AuthConfig;
   readonly mail: MailConfig;
+  readonly commerce: CommerceConfig;
+  readonly payments: PaymentsConfig;
+  readonly push: PushConfig;
+  readonly storage: StorageConfig;
+}
+
+export interface CommerceConfig {
+  /** Platform commission on the order subtotal, in basis points (1500 = 15%). */
+  readonly commissionBasisPoints: number;
+  /** Unpaid orders are cancelled (and stock released) after this many minutes. */
+  readonly unpaidOrderTtlMinutes: number;
+  /** Open custom requests expire after this many hours without a selected offer. */
+  readonly customRequestTtlHours: number;
+}
+
+export interface PaymentsConfig {
+  /** simulated: development/test only (refused in production). stripe: real PaymentIntents + webhooks. */
+  readonly provider: 'simulated' | 'stripe';
+  readonly stripeSecretKey: string | null;
+  readonly stripeWebhookSecret: string | null;
+}
+
+export interface PushConfig {
+  /** Send Expo push notifications (in-app notifications are always stored). */
+  readonly enabled: boolean;
+  /** Optional Expo access token (enhanced push security in the Expo dashboard). */
+  readonly expoAccessToken: string | null;
+}
+
+export interface StorageConfig {
+  /** local: files under storageDir (development; production check flags it). */
+  readonly driver: 'local';
+  readonly localDir: string;
+}
+
+function parseCommerceConfig(env: NodeJS.ProcessEnv): CommerceConfig {
+  return {
+    commissionBasisPoints: parseIntegerInRange('PLATFORM_COMMISSION_BPS', env.PLATFORM_COMMISSION_BPS, 1500, 0, 5000),
+    unpaidOrderTtlMinutes: parseIntegerInRange('UNPAID_ORDER_TTL_MINUTES', env.UNPAID_ORDER_TTL_MINUTES, 30, 5, 1440),
+    customRequestTtlHours: parseIntegerInRange('CUSTOM_REQUEST_TTL_HOURS', env.CUSTOM_REQUEST_TTL_HOURS, 48, 1, 720),
+  };
+}
+
+function parsePaymentsConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): PaymentsConfig {
+  const provider = (env.PAYMENT_PROVIDER?.trim().toLowerCase() || 'simulated') as PaymentsConfig['provider'];
+  if (provider !== 'simulated' && provider !== 'stripe') {
+    throw new ConfigError('PAYMENT_PROVIDER must be "simulated" or "stripe".');
+  }
+  if (provider === 'simulated' && nodeEnv === 'production') {
+    throw new ConfigError('PAYMENT_PROVIDER=simulated is not allowed in production. Use "stripe".');
+  }
+  const stripeSecretKey = env.STRIPE_SECRET_KEY?.trim() || null;
+  const stripeWebhookSecret = env.STRIPE_WEBHOOK_SECRET?.trim() || null;
+  if (provider === 'stripe') {
+    if (!stripeSecretKey || !/^(sk|rk)_(test|live)_[A-Za-z0-9]+$/.test(stripeSecretKey)) {
+      throw new ConfigError('STRIPE_SECRET_KEY must be a Stripe secret key (sk_test_... or sk_live_...).');
+    }
+    if (!stripeWebhookSecret || !stripeWebhookSecret.startsWith('whsec_')) {
+      throw new ConfigError('STRIPE_WEBHOOK_SECRET must be set (whsec_...). Webhooks are the only source of payment success.');
+    }
+    if (nodeEnv === 'production' && stripeSecretKey.includes('_test_')) {
+      throw new ConfigError('STRIPE_SECRET_KEY is a test key but NODE_ENV=production.');
+    }
+  }
+  return { provider, stripeSecretKey, stripeWebhookSecret };
+}
+
+function parseBoolean(name: string, raw: string | undefined, fallback: boolean): boolean {
+  const text = raw?.trim().toLowerCase();
+  if (!text) {
+    return fallback;
+  }
+  if (text !== 'true' && text !== 'false') {
+    throw new ConfigError(`${name} must be "true" or "false".`);
+  }
+  return text === 'true';
+}
+
+function parsePushConfig(env: NodeJS.ProcessEnv): PushConfig {
+  return {
+    enabled: parseBoolean('PUSH_ENABLED', env.PUSH_ENABLED, false),
+    expoAccessToken: env.EXPO_ACCESS_TOKEN?.trim() || null,
+  };
+}
+
+function parseStorageConfig(env: NodeJS.ProcessEnv): StorageConfig {
+  const driver = env.STORAGE_DRIVER?.trim().toLowerCase() || 'local';
+  if (driver !== 'local') {
+    throw new ConfigError('STORAGE_DRIVER must be "local" (S3-compatible storage: see ADR-012).');
+  }
+  return { driver, localDir: env.STORAGE_LOCAL_DIR?.trim() || 'storage' };
 }
 
 export interface MailConfig {
@@ -201,5 +292,9 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
     database: loadDatabaseConfig(env),
     auth: parseAuthConfig(env, nodeEnv),
     mail: parseMailConfig(env, nodeEnv),
+    commerce: parseCommerceConfig(env),
+    payments: parsePaymentsConfig(env, nodeEnv),
+    push: parsePushConfig(env),
+    storage: parseStorageConfig(env),
   };
 }

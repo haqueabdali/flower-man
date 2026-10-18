@@ -21,7 +21,8 @@
     "db:logs": "docker compose -f infra/compose.yaml logs --tail 100",
     "db:down": "docker compose -f infra/compose.yaml down",
     "db:migrate": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate",
-    "db:migrate:status": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate:status"
+    "db:migrate:status": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate:status",
+    "bootstrap:platform-owner": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run bootstrap:platform-owner"
   },
   "devDependencies": {
     "typescript": "catalog:"

@@ -4,6 +4,7 @@ import { API_GLOBAL_PREFIX, API_VERSION, REQUEST_ID_HEADER } from '@flower-man/c
 import type { LogLevel } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import express from 'express';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module.js';
@@ -30,12 +31,19 @@ export async function createApp(config: AppConfig): Promise<NestExpressApplicati
   app.disable('x-powered-by');
   app.use(requestContext);
   app.use(helmet());
+  // Raw bodies where they are needed (registered before the JSON parser, which then skips them):
+  // the Stripe webhook signature is computed over the exact bytes; proof photos are binary uploads.
+  app.use(`/${API_PREFIX}/payments/stripe/webhook`, express.raw({ type: '*/*', limit: '1mb' }));
+  app.use(
+    `/${API_PREFIX}/courier/deliveries/:id/proof`,
+    express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '8mb' }),
+  );
   app.useBodyParser('json', { limit: '100kb' });
   app.enableCors({
     // false = no CORS headers at all: browsers on other origins are refused.
     origin: config.corsOrigins.length > 0 ? [...config.corsOrigins] : false,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Authorization', 'Content-Type', REQUEST_ID_HEADER],
+    allowedHeaders: ['Authorization', 'Content-Type', REQUEST_ID_HEADER, 'X-Seller-Id'],
     exposedHeaders: [REQUEST_ID_HEADER],
     credentials: false,
     maxAge: 600,

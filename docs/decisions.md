@@ -193,3 +193,44 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   Locally, `infra/compose.yaml` runs Mailpit (SMTP 127.0.0.1:1025, inbox http://localhost:8025).
 - Rate limits: reset requests 20 per IP and 5 per account per hour; verification re-sends 5 per user per hour.
 - Security events: `EMAIL_VERIFICATION_SENT`, `EMAIL_VERIFIED`, `PASSWORD_RESET_REQUESTED`, `PASSWORD_RESET_COMPLETED`.
+
+## ADR-012: Marketplace core (Milestones 5–18)
+
+- **Platform Owner:** `pnpm bootstrap:platform-owner` reads `PLATFORM_OWNER_EMAIL/PASSWORD/NAME`. It is idempotent: it creates the account
+  or promotes an existing one, and never changes the password unless `PLATFORM_OWNER_RESET_PASSWORD=true`.
+  Only a PLATFORM_OWNER can grant or remove platform roles. Admin actions go to the append-only `audit_log`.
+- **Service zones:** PostGIS `MultiPolygon` per zone, with an active flag and delivery fee. Bergamo is seeded as `IT-BG-BERGAMO`
+  (approximate envelope, replaceable through `PATCH /admin/zones/:id` with GeoJSON). Points are matched with `ST_Covers`.
+- **Partners:**
+  - one `partner_accounts` table, with kind `SHOP | FREELANCE_SELLER | COURIER`. A freelance seller needs no shop;
+    shops and freelancers share the commerce tables as "sellers" without being the same entity;
+  - verification goes `DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED | REJECTED`, with `SUSPENDED` after approval.
+    Approval grants the matching capability. Onboarding endpoints only need sign-in, so unapproved partners are never locked out;
+  - selling or delivering requires `APPROVED`, re-checked on every request.
+- **Orders:** the state machine is in `@flower-man/domain`. Every change goes through `transitionOrder`, which appends to
+  `order_status_history`. Unpaid orders are invisible to sellers. Checkout recomputes all amounts from database prices,
+  requires a verified email, and enforces one seller per cart, the zone and stock.
+- **Payments:** a provider abstraction:
+  - `simulated` for development and tests; refused in production;
+  - `stripe`: a PaymentIntent with idempotency key `order-<id>`. Success comes **only** from the signature-verified webhook
+    (raw body, `STRIPE_WEBHOOK_SECRET`), and events are de-duplicated in `payment_events`;
+  - refunds are idempotent too. A payment that arrives after the order expired is refunded automatically.
+- **Delivery:** a job is OFFERED when the seller marks the order ready. The first courier to accept wins (conditional UPDATE).
+  Pickup, transit, arrival, proof and completion are courier-only and checked by the state machine. GPS is accepted only while
+  ASSIGNED, PICKED_UP or IN_TRANSIT, for the assigned courier. ETA = distance / 18 km/h. The GPS trail is purged 30 days after delivery.
+- **Proof:** a raw JPEG/PNG/WebP upload (≤ 8 MB, checked by magic bytes), stored through `ObjectStorage` with SHA-256 and optional GPS metadata.
+  Completion requires proof; a database constraint enforces it too. Only the `local` driver exists today. An S3-compatible driver
+  must be added before production (`release:production-check` flags `STORAGE_DRIVER=local`).
+- **Earnings:** an append-only `ledger_entries` table, signed cents:
+  - on delivery, the seller gets ORDER_REVENUE (+subtotal) and PLATFORM_COMMISSION (−commission), and the courier gets DELIVERY_FEE;
+  - a partial unique index makes earnings impossible to record twice;
+  - refunds after delivery add a REFUND_ADJUSTMENT (capped at what the seller earned on the order);
+  - a trigger allows only `settlement_id` to change: attach while unsettled, detach only from a FAILED settlement.
+- **Settlements:** `CREATED → PROCESSING → PAID` (bank or provider reference required), or `FAILED`, which makes the entries payable again.
+  Creation locks the partner's unsettled entries, so concurrent requests cannot settle the same entry twice. Payouts are recorded
+  manually today; Stripe Connect or SEPA can later drive the same transitions.
+- **Notifications:** every event is stored in the in-app inbox (`/me/notifications`). Expo push is best effort and needs `PUSH_ENABLED=true`;
+  tokens reported as `DeviceNotRegistered` are deleted.
+- **Privacy:** `POST /me/deletion-request`. An admin completes it, which anonymises the user and removes credentials, devices and cart
+  while keeping bookkeeping records. Couriers' locations are stored only during active deliveries.
+- **Maintenance** (every minute, idempotent): expire unpaid orders and release their stock, expire custom requests, purge old GPS points.
