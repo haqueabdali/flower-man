@@ -63,13 +63,20 @@ The `eas-build-post-install` script builds the shared packages (`pnpm build:core
    node --env-file=.env.production scripts/production-check.mjs
    ```
    This must print "Production environment OK".
-3. Build:
-   - API: `pnpm build:api`, then run `node apps/api/dist/main.js`. The process needs `infra/database/migrations`.
-   - Admin: `pnpm build:admin`, then run `node apps/admin-web/.next/standalone/apps/admin-web/server.js`.
+3. Build the container images (from the repository root; both run as the non-root `node` user):
+   ```bash
+   docker build -f apps/api/Dockerfile -t flower-man-api .
+   docker build -f apps/admin-web/Dockerfile -t flower-man-admin .
+   ```
+   - API: `docker run --env-file .env.production -p 4000:4000 flower-man-api` (health: `GET /api/v1/health`).
+   - Admin: `docker run -e ADMIN_API_URL=https://api.example.it -p 3000:3000 flower-man-admin`.
+   - Without Docker: `pnpm build:api` then `node apps/api/dist/main.js`; `pnpm build:admin` then
+     `node apps/admin-web/.next/standalone/apps/admin-web/server.js` (copy `.next/static` next to it).
 4. Migrate before starting the new API version:
-   `node apps/api/dist/database/migrate.js up --dir infra/database/migrations`.
+   `docker run --rm --env-file .env.production flower-man-api node dist/database/migrate.js up --dir /app/migrations`.
    It is safe to run from several instances at once, because an advisory lock serialises the runs.
-5. Run the bootstrap once: `node apps/api/dist/cli/bootstrap-platform-owner.js`. It is idempotent.
+5. Run the bootstrap once (idempotent):
+   `docker run --rm --env-file .env.production flower-man-api node dist/cli/bootstrap-platform-owner.js`.
 6. Object storage: create a **private** bucket and an access key limited to `PutObject`/`GetObject` on it.
    Put the values in `S3_*` (see `.env.production.example`).
 7. In the Stripe dashboard, add a webhook to `https://<api>/api/v1/payments/stripe/webhook` for

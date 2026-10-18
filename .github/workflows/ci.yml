@@ -1,0 +1,56 @@
+# Continuous integration: the same checks a contributor runs locally, on every push and pull request.
+# Actions are pinned to full commit SHAs (supply-chain safety); the comment shows the release tag.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, tests, builds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0 (version from packageManager)
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Unit tests, typecheck and repository rules.
+      - run: pnpm release:check
+
+      # Integration tests against the same PostgreSQL/PostGIS container as local development.
+      - name: Start database
+        run: |
+          cp .env.example .env
+          docker compose -f infra/compose.yaml up -d --wait db
+      - run: pnpm db:migrate
+      - run: pnpm test:integration
+      - name: Database logs on failure
+        if: failure()
+        run: docker compose -f infra/compose.yaml logs --tail 200 db
+
+      # Production builds.
+      - run: pnpm build:api
+      - run: pnpm build:admin
+
+  images:
+    name: Docker images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -f apps/api/Dockerfile -t flower-man-api .
+      - run: docker build -f apps/admin-web/Dockerfile -t flower-man-admin .

@@ -289,3 +289,18 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   - One atomic `INSERT … ON CONFLICT DO UPDATE` per attempt, no extra infrastructure (no Redis).
   - Keys are `<rule>:<sha256(key)>`: the table never holds an email address or an IP address in clear.
   - The table is `UNLOGGED`: a database crash only resets the windows early. The maintenance job purges expired rows.
+
+## ADR-016: Continuous integration and container images
+
+- `.github/workflows/ci.yml` runs on every push to `main` and every pull request:
+  - `pnpm release:check` (repository rules, typecheck, unit tests);
+  - the PostgreSQL/PostGIS container from `infra/compose.yaml`, `pnpm db:migrate`, `pnpm test:integration`;
+  - the production builds of the API and the admin app, and both Docker images.
+- Actions are pinned to full commit SHAs, with the release tag in a comment. Releases younger than two weeks are not used.
+  The workflow token is read-only (`permissions: contents: read`).
+- Images (`apps/api/Dockerfile`, `apps/admin-web/Dockerfile`) build from the repository root on `node:24.7.0-alpine`:
+  - API: production dependencies only, plus the migrations at `/app/migrations`; the same image runs the server,
+    the migrations and the owner bootstrap.
+  - Admin: the Next.js standalone server.
+  - Both run as the non-root `node` user and take configuration only from environment variables. `.dockerignore` keeps
+    `.env` files, local storage and build output out of the build context.
