@@ -31,20 +31,35 @@ Test payments in development: `PAYMENT_PROVIDER=simulated`. The payment screen s
 
 ## 2. EAS (Expo Application Services)
 
-Do this once per app. **Never invent project IDs.**
+Both apps belong to the Expo account `flower-man`. Each is a **separate EAS project**, and its ID is in its `app.config.ts`
+(created with `npx eas-cli init`, never invented; `EXPO_PUBLIC_EAS_PROJECT_ID` can override it, e.g. for staging):
+
+| App | EAS project | Package / bundle ID |
+|---|---|---|
+| customer | `@flower-man/flower-man-customer` | `it.flowerman.customer` |
+| partner | `@flower-man/flower-man-partner` | `it.flowerman.partner` |
+
+`eas init` reports "Cannot automatically write to dynamic config": that is expected, because the config is code.
+
+Android development build (once per app, and again after native dependency changes):
 
 ```bash
 cd /e/flower-man/apps/customer-mobile
-npx eas-cli login
-npx eas-cli init                  # creates the EAS project and prints its ID
-npx eas-cli project:info          # verify
-# put the ID in EXPO_PUBLIC_EAS_PROJECT_ID for this app's builds (EAS environment variables or eas.json env)
-npx eas-cli build --profile development --platform android
+npx eas-cli project:info                                   # must show @flower-man/flower-man-customer
+npx eas-cli build --profile development --platform android # accept "Generate a new Android Keystore?"
 ```
 
-Repeat in `apps/partner-mobile`. It is a **separate project** with its own ID:
-- customer app: `it.flowerman.customer`
-- partner app: `it.flowerman.partner`
+Install the APK on the phone from the link or QR code EAS prints. Then run the JavaScript from your PC
+(phone and PC on the same Wi-Fi, API started with `HOST=0.0.0.0`):
+
+```bash
+cd /e/flower-man
+pnpm build:core
+cd apps/customer-mobile
+EXPO_PUBLIC_API_URL=http://<your-PC-LAN-IP>:4000 pnpm start   # open the app on the phone; it finds this server
+```
+
+Same steps in `apps/partner-mobile`.
 
 Push credentials:
 - Android: upload the FCM v1 service-account key with `npx eas-cli credentials`.

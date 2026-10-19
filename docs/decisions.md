@@ -254,7 +254,8 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   version map (`expo install`, offline mode when the network is restricted). Each app has its own configuration:
   - customer app: `it.flowerman.customer`, scheme `flowerman`;
   - partner app: `it.flowerman.partner`, scheme `flowermanpartner`.
-  Each needs its own EAS project, created with `eas init` and never invented; the ID is set in `EXPO_PUBLIC_EAS_PROJECT_ID`.
+  Each has its own EAS project in the Expo account `flower-man`, created with `eas init` (never invented). The ID is in
+  `app.config.ts`; `EXPO_PUBLIC_EAS_PROJECT_ID` can override it.
 - Both apps use `@flower-man/api-client`. Tokens are stored with `expo-secure-store` (keychain/keystore), and refreshes are serialised
   because refresh tokens are single use.
 - Navigation is a small in-app stack with tabs, which avoids extra native dependencies. Deep links `…/verify-email?token=` and

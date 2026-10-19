@@ -1,11 +1,14 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
-// Values come from the environment (EAS build profiles or a local .env). Never invent EAS project IDs:
-// run `npx eas-cli init` once in this folder and put the generated ID in EXPO_PUBLIC_EAS_PROJECT_ID.
-const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+// EAS project @flower-man/flower-man-customer, created with `npx eas-cli init` (not a secret).
+// EXPO_PUBLIC_EAS_PROJECT_ID overrides it, e.g. for a staging project.
+const EAS_OWNER = 'flower-man';
+const EAS_PROJECT_ID = '14adb6fa-ed19-4fa3-a582-a659a7429365';
+const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || EAS_PROJECT_ID;
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
+  owner: EAS_OWNER,
   name: 'Flower Man',
   slug: 'flower-man-customer',
   scheme: 'flowerman',
@@ -33,7 +36,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ['@stripe/stripe-react-native', { merchantIdentifier: process.env.EXPO_PUBLIC_STRIPE_MERCHANT_ID ?? 'merchant.it.flowerman', enableGooglePay: true }],
   ],
   extra: {
-    ...(projectId ? { eas: { projectId } } : {}),
+    eas: { projectId },
   },
-  ...(projectId ? { updates: { url: `https://u.expo.dev/${projectId}` }, runtimeVersion: { policy: 'appVersion' } } : {}),
+  updates: { url: `https://u.expo.dev/${projectId}` },
+  runtimeVersion: { policy: 'appVersion' },
 });

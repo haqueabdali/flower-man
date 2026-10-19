@@ -43,7 +43,12 @@ const id = (config, key) => new RegExp(`${key}:\\s*'([^']+)'`).exec(config)?.[1]
 check(id(customerConfig, 'bundleIdentifier') && id(customerConfig, 'bundleIdentifier') !== id(partnerConfig, 'bundleIdentifier'), 'customer and partner iOS bundle identifiers differ');
 check(id(customerConfig, 'package') && id(customerConfig, 'package') !== id(partnerConfig, 'package'), 'customer and partner Android packages differ');
 check(id(customerConfig, 'slug') !== id(partnerConfig, 'slug'), 'customer and partner Expo slugs differ');
-check(!/projectId:\s*'[0-9a-f-]{36}'/.test(customerConfig + partnerConfig), 'no hard-coded EAS project IDs (they come from EXPO_PUBLIC_EAS_PROJECT_ID)');
+const EAS_ID = /EAS_PROJECT_ID = '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'/;
+const customerProject = EAS_ID.exec(customerConfig)?.[1];
+const partnerProject = EAS_ID.exec(partnerConfig)?.[1];
+check(Boolean(customerProject && partnerProject) && customerProject !== partnerProject, 'customer and partner each have their own EAS project ID (from `eas init`)');
+const owner = (config) => /EAS_OWNER = '([a-z0-9-]+)'/.exec(config)?.[1];
+check(Boolean(owner(customerConfig)) && owner(customerConfig) === owner(partnerConfig), 'both apps belong to the same Expo account (owner)');
 check(/isAndroidBackgroundLocationEnabled:\s*true/.test(partnerConfig) && /UIBackgroundModes:\s*\['location'\]/.test(partnerConfig), 'partner app declares background location');
 check(/blockedPermissions:\s*\['ACCESS_BACKGROUND_LOCATION'\]/.test(customerConfig), 'customer app never requests background location');
 
