@@ -12,6 +12,9 @@ import {
   type OrderDetail,
   type OrderSummary,
   type PaymentInstructions,
+  type PromoPreview,
+  type PromoPreviewRequest,
+  promoPreviewSchema,
   type ReorderResponse,
   type ReviewOrderRequest,
   reviewOrderSchema,
@@ -58,6 +61,12 @@ export class CustomerController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async clear(@CurrentAuth() auth: AuthenticatedContext): Promise<void> {
     await this.commerce.clearCart(auth.userId);
+  }
+
+  @Post('checkout/promo')
+  @HttpCode(HttpStatus.OK)
+  async promoPreview(@CurrentAuth() auth: AuthenticatedContext, @Body(new ZodBodyPipe(promoPreviewSchema)) body: PromoPreviewRequest): Promise<PromoPreview> {
+    return this.commerce.previewPromo(auth.userId, body);
   }
 
   @Post('checkout')

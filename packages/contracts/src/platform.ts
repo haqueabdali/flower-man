@@ -194,8 +194,63 @@ export const checkoutSchema = z.strictObject({
   requestedDeliveryAt: isoDate.optional(),
   /** Optional: if given, checkout fails with 409 when the server total differs (the client shows the new total). */
   expectedTotalMinor: z.number().int().positive().optional(),
+  promoCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{3,32}$/, { message: 'This code is not valid.' }).optional(),
 });
 export type CheckoutRequest = z.infer<typeof checkoutSchema>;
+
+// ---------------------------------------------------------------- discount codes
+export const promoPreviewSchema = z.strictObject({
+  code: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{3,32}$/, { message: 'This code is not valid.' }),
+  deliveryLocation: geoPointSchema,
+});
+export type PromoPreviewRequest = z.infer<typeof promoPreviewSchema>;
+
+/** What the current cart would cost with the code (checkout recomputes it). */
+export interface PromoPreview {
+  readonly code: string;
+  readonly description: string | null;
+  readonly subtotalMinor: number;
+  readonly deliveryFeeMinor: number;
+  readonly discountMinor: number;
+  readonly totalMinor: number;
+}
+
+export const PROMO_KINDS = ['PERCENT', 'FIXED'] as const;
+
+export const createPromoSchema = z
+  .strictObject({
+    code: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{3,32}$/, { message: 'Use 3–32 letters, digits or dashes.' }),
+    description: z.string().trim().max(200).optional(),
+    kind: z.enum(PROMO_KINDS),
+    value: z.number().int().positive(),
+    maxDiscountMinor: z.number().int().positive().optional(),
+    minSubtotalMinor: z.number().int().min(0).optional(),
+    startsAt: isoDate.optional(),
+    endsAt: isoDate.optional(),
+    maxRedemptions: z.number().int().positive().optional(),
+    firstOrderOnly: z.boolean().optional(),
+  })
+  .refine((promo) => promo.kind !== 'PERCENT' || promo.value <= 100, { message: 'A percentage must be between 1 and 100.', path: ['value'] });
+export type CreatePromoRequest = z.infer<typeof createPromoSchema>;
+
+export const updatePromoSchema = z.strictObject({ active: z.boolean() });
+
+export interface PromoCodeView {
+  readonly id: string;
+  readonly code: string;
+  readonly description: string | null;
+  readonly kind: (typeof PROMO_KINDS)[number];
+  readonly value: number;
+  readonly maxDiscountMinor: number | null;
+  readonly minSubtotalMinor: number;
+  readonly startsAt: string;
+  readonly endsAt: string | null;
+  readonly maxRedemptions: number | null;
+  readonly firstOrderOnly: boolean;
+  readonly active: boolean;
+  readonly redemptions: number;
+  readonly discountGivenMinor: number;
+}
 
 export interface PaymentInstructions {
   readonly provider: 'SIMULATED' | 'STRIPE';
@@ -221,6 +276,8 @@ export interface OrderSummary {
   readonly sellerName: string;
   readonly subtotalMinor: number;
   readonly deliveryFeeMinor: number;
+  /** Platform-funded discount code; totalMinor = subtotal + delivery fee − discount. */
+  readonly discountMinor: number;
   readonly totalMinor: number;
   readonly currency: 'EUR';
   readonly recipientName: string;

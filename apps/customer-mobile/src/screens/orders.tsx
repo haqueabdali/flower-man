@@ -51,6 +51,7 @@ export function OrderScreen({ orderId }: { orderId: string }) {
         <Muted>{order.sellerName}</Muted>
         {order.items.map((item) => <Body key={item.name}>{item.quantity} × {item.name} · {formatPrice(item.lineTotalMinor)}</Body>)}
         <Body>{t('orderDeliveryFee', { price: formatPrice(order.deliveryFeeMinor) })}</Body>
+        {order.discountMinor > 0 && <Body>{t('orderDiscount', { price: formatPrice(order.discountMinor) })}</Body>}
         <Strong>{t('orderTotal', { price: formatPrice(order.totalMinor) })}</Strong>
       </Card>
       {delivery && (

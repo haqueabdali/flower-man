@@ -590,3 +590,49 @@ describe('product photos', () => {
   });
 });
 
+
+describe('discount codes', () => {
+  it('discounts the payment (platform-funded), once per customer, with limits and release on cancellation', async () => {
+    const tulips = await shop.user.post<Product>('/seller/products', { name: 'Promo tulips', category: 'BOUQUET', priceMinor: 2000 }, 201);
+    await admin.post('/admin/promo-codes', { code: 'welcome10', kind: 'PERCENT', value: 10, firstOrderOnly: true }, 204);
+    await admin.post('/admin/promo-codes', { code: 'FLAT5', kind: 'FIXED', value: 500, minSubtotalMinor: 3000, maxRedemptions: 1 }, 204);
+    await admin.post('/admin/promo-codes', { code: 'WELCOME10', kind: 'FIXED', value: 100 }, 409);
+    await admin.post('/admin/promo-codes', { code: 'BAD', kind: 'PERCENT', value: 150 }, 400);
+
+    const buyer = await signUp('promo');
+    const delivery = { recipientName: 'Anna', recipientPhone: '+393331234567', deliveryAddress: 'Via Pignolo 1, Bergamo', deliveryLocation: BERGAMO_CENTRE };
+    await buyer.put('/cart/items', { productId: tulips.id, quantity: 1 });
+    await buyer.post('/checkout/promo', { code: 'NOPE', deliveryLocation: BERGAMO_CENTRE }, 400);
+    await buyer.post('/checkout/promo', { code: 'FLAT5', deliveryLocation: BERGAMO_CENTRE }, 400); // minimum €30
+    const preview = await buyer.post<{ discountMinor: number; totalMinor: number }>('/checkout/promo', { code: 'welcome10', deliveryLocation: BERGAMO_CENTRE });
+    assert.deepEqual(preview, { code: 'WELCOME10', description: null, subtotalMinor: 2000, deliveryFeeMinor: 590, discountMinor: 200, totalMinor: 2390 });
+
+    // Checkout recomputes: the order, the payment and the seller's earnings.
+    const first = await buyer.post<CheckoutResponse>('/checkout', { ...delivery, promoCode: 'welcome10', expectedTotalMinor: 2390 }, 201);
+    assert.equal(first.order.discountMinor, 200);
+    assert.equal(first.order.totalMinor, 2390);
+    assert.equal(first.payment.amountMinor, 2390);
+
+    // Cancelling the unpaid order gives the code back; a paid order uses it up.
+    await buyer.post(`/orders/${first.order.id}/cancel`, { reason: 'Changed my mind' });
+    await buyer.put('/cart/items', { productId: tulips.id, quantity: 2 });
+    const second = await buyer.post<CheckoutResponse>('/checkout', { ...delivery, promoCode: 'WELCOME10' }, 201);
+    assert.equal(second.order.discountMinor, 400);
+    await pay(second);
+    const commission = await db.query<{ amount_minor: number }>(`SELECT platform_commission_minor AS amount_minor FROM orders WHERE id = $1`, [second.order.id]);
+    assert.equal(commission.rows[0]?.amount_minor, 600, 'commission still on the full subtotal: the platform pays the discount');
+    await buyer.put('/cart/items', { productId: tulips.id, quantity: 2 });
+    await buyer.post('/checkout', { ...delivery, promoCode: 'WELCOME10' }, 409); // already used
+    // FLAT5: one redemption in total.
+    await buyer.post<CheckoutResponse>('/checkout', { ...delivery, promoCode: 'FLAT5' }, 201);
+    const other = await signUp('promo-other');
+    await other.put('/cart/items', { productId: tulips.id, quantity: 2 });
+    await other.post('/checkout', { ...delivery, promoCode: 'FLAT5' }, 409);
+
+    const codes = await admin.get<{ items: { id: string; code: string; redemptions: number; discountGivenMinor: number }[] }>('/admin/promo-codes');
+    const welcome = codes.items.find((c) => c.code === 'WELCOME10');
+    assert.deepEqual([welcome?.redemptions, welcome?.discountGivenMinor], [1, 400]);
+    await admin.raw('PATCH', `/admin/promo-codes/${welcome?.id}`, JSON.stringify({ active: false }), { 'Content-Type': 'application/json' });
+    await other.post('/checkout', { ...delivery, promoCode: 'WELCOME10' }, 400);
+  });
+});

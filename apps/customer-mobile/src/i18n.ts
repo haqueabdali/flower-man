@@ -194,6 +194,11 @@ const en = {
   checkoutNoSlots: 'No more time slots today: choose another day.',
   orderAgain: 'Order again',
   orderAgainPartial: 'Some items are no longer available: {items}',
+  checkoutPromo: 'Discount code',
+  checkoutPromoApply: 'Apply',
+  checkoutPromoApplied: 'Code {code}: −{discount} · you pay {total}',
+  checkoutPromoRemove: 'Remove code',
+  orderDiscount: 'Discount −{price}',
 } as const;
 
 type Key = keyof typeof en;
@@ -379,6 +384,11 @@ const it: { [K in Key]: string } = {
   checkoutNoSlots: 'Oggi non ci sono più fasce orarie: scegli un altro giorno.',
   orderAgain: 'Ordina di nuovo',
   orderAgainPartial: 'Alcuni articoli non sono più disponibili: {items}',
+  checkoutPromo: 'Codice sconto',
+  checkoutPromoApply: 'Applica',
+  checkoutPromoApplied: 'Codice {code}: −{discount} · paghi {total}',
+  checkoutPromoRemove: 'Rimuovi codice',
+  orderDiscount: 'Sconto −{price}',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

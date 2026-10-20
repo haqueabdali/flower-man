@@ -9,6 +9,7 @@ import {
   basisPointsOf,
   calculateOrderAmounts,
   canTransitionOrder,
+  discountFor,
   formatEuro,
   multiplyMinor,
   sumMinor,
@@ -84,5 +85,21 @@ describe('other state machines', () => {
     assert.doesNotThrow(() => assertSettlementTransition('PROCESSING', 'PAID'));
     assert.throws(() => assertSettlementTransition('PAID', 'FAILED'), TransitionError);
     assert.throws(() => assertSettlementTransition('CREATED', 'PAID'), TransitionError);
+  });
+});
+
+describe('discounts', () => {
+  const amounts = calculateOrderAmounts([{ unitPrice: 2990, quantity: 2 }], 590, 1500); // subtotal 5980, total 6570
+
+  it('takes a percentage of the subtotal only, rounded half-up', () => {
+    assert.equal(discountFor(amounts, { kind: 'PERCENT', value: 15, maxDiscountMinor: null }), 897);
+    assert.equal(discountFor(calculateOrderAmounts([{ unitPrice: 1, quantity: 50 }], 590, 1500), { kind: 'PERCENT', value: 1, maxDiscountMinor: null }), 1); // 0.5 → 1
+  });
+
+  it('applies caps and never charges less than the minimum', () => {
+    assert.equal(discountFor(amounts, { kind: 'PERCENT', value: 50, maxDiscountMinor: 1000 }), 1000);
+    assert.equal(discountFor(amounts, { kind: 'FIXED', value: 500, maxDiscountMinor: null }), 500);
+    assert.equal(discountFor(amounts, { kind: 'FIXED', value: 100_000, maxDiscountMinor: null }), 6520);
+    assert.equal(discountFor(amounts, { kind: 'PERCENT', value: 100, maxDiscountMinor: null }), 5980);
   });
 });

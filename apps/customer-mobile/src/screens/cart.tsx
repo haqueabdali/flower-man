@@ -1,5 +1,5 @@
 import { formatPrice } from '@flower-man/api-client';
-import type { Cart, CheckoutResponse } from '@flower-man/contracts';
+import type { Cart, CheckoutResponse, PromoPreview } from '@flower-man/contracts';
 import { useStripe } from '@stripe/stripe-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -57,6 +57,8 @@ export function CheckoutScreen() {
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [giftMessage, setGiftMessage] = useState('');
   const [deliverAt, setDeliverAt] = useState<Date | null>(null);
+  const [promoInput, setPromoInput] = useState('');
+  const [promo, setPromo] = useState<PromoPreview | null>(null);
   const [busy, setBusy] = useState(false);
 
   const placeOrder = () =>
@@ -74,6 +76,7 @@ export function CheckoutScreen() {
             ...(deliveryNotes ? { deliveryNotes } : {}),
             ...(giftMessage ? { giftMessage } : {}),
             ...(deliverAt ? { requestedDeliveryAt: deliverAt.toISOString() } : {}),
+            ...(promo ? { promoCode: promo.code, expectedTotalMinor: promo.totalMinor } : {}),
           },
         });
         navigation.reset({ name: 'payment', checkout });
@@ -91,6 +94,31 @@ export function CheckoutScreen() {
       <DeliveryTimePicker value={deliverAt} onChange={setDeliverAt} />
       <Field label={t('checkoutNotes')} value={deliveryNotes} onChangeText={setDeliveryNotes} />
       <Field label={t('checkoutGift')} value={giftMessage} onChangeText={setGiftMessage} multiline />
+      <Card>
+        {promo ? (
+          <>
+            <Strong>{t('checkoutPromoApplied', { code: promo.code, discount: formatPrice(promo.discountMinor), total: formatPrice(promo.totalMinor) })}</Strong>
+            <Button kind="secondary" title={t('checkoutPromoRemove')} onPress={() => setPromo(null)} />
+          </>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Field label={t('checkoutPromo')} value={promoInput} onChangeText={setPromoInput} autoCapitalize="characters" autoCorrect={false} />
+            </View>
+            <Button
+              kind="secondary"
+              title={t('checkoutPromoApply')}
+              disabled={promoInput.trim().length < 3}
+              onPress={() =>
+                attempt(async () => {
+                  const location = await currentLocation();
+                  setPromo(await api.request<PromoPreview>('checkout/promo', { method: 'POST', body: { code: promoInput.trim(), deliveryLocation: { latitude: location.latitude, longitude: location.longitude } } }));
+                })
+              }
+            />
+          </View>
+        )}
+      </Card>
       <Button title={busy ? t('checkoutPlacing') : t('checkoutContinue')} onPress={placeOrder} disabled={busy} />
     </Screen>
   );

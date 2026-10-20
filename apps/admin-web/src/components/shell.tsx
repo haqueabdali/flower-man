@@ -12,6 +12,7 @@ const NAV = [
   ['/deliveries', 'Deliveries'],
   ['/custom-requests', 'Custom requests'],
   ['/reviews', 'Reviews'],
+  ['/promo-codes', 'Discount codes'],
   ['/payments', 'Payments'],
   ['/payouts', 'Earnings & payouts'],
   ['/zones', 'Service zones'],

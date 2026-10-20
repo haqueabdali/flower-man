@@ -1,4 +1,4 @@
-import type { Cart, CartItemRequest, CheckoutRequest, CheckoutResponse, OrderDetail, OrderSummary, ReorderResponse } from '@flower-man/contracts';
+import type { Cart, CartItemRequest, CheckoutRequest, CheckoutResponse, OrderDetail, OrderSummary, PromoPreview, PromoPreviewRequest, ReorderResponse } from '@flower-man/contracts';
 import { calculateOrderAmounts, type OrderStatus } from '@flower-man/domain';
 import {
   BadRequestException,
@@ -23,6 +23,7 @@ import { PaymentsService } from '../payments/payments.service.js';
 import { ZonesService } from '../zones/zones.service.js';
 import { listOrders, loadOrderDetail, toOrderSummary, ORDER_SUMMARY_SELECT } from './order-views.js';
 import { lockOrder, releaseStock, transitionOrder } from './order-workflow.js';
+import { PromoService } from './promo.service.js';
 
 const MIN_LEAD_MINUTES = 60;
 const MAX_ADVANCE_DAYS = 30;
@@ -56,6 +57,7 @@ export class CommerceService {
     private readonly payments: PaymentsService,
     private readonly delivery: DeliveryService,
     private readonly notifications: NotificationsService,
+    private readonly promos: PromoService,
   ) {}
 
   // ---------------------------------------------------------------- cart
@@ -168,6 +170,28 @@ export class CommerceService {
     return { cart: await this.getCart(customerId), unavailable };
   }
 
+  /** What the current cart costs with a code, before checkout. Checkout re-checks everything. */
+  async previewPromo(customerId: string, input: PromoPreviewRequest): Promise<PromoPreview> {
+    const zone = await this.zones.requireActiveZone(input.deliveryLocation.latitude, input.deliveryLocation.longitude);
+    const lines = await this.pool.query<{ price_minor: number; quantity: number }>(
+      'SELECT pr.price_minor, ci.quantity FROM cart_items ci JOIN products pr ON pr.id = ci.product_id WHERE ci.customer_id = $1',
+      [customerId],
+    );
+    if (lines.rows.length === 0) {
+      throw new BadRequestException('Your cart is empty.');
+    }
+    const amounts = calculateOrderAmounts(lines.rows.map((line) => ({ unitPrice: line.price_minor, quantity: line.quantity })), zone.deliveryFeeMinor, this.config.commerce.commissionBasisPoints);
+    const promo = await this.promos.evaluate(this.pool, customerId, input.code, amounts, false);
+    return {
+      code: promo.code,
+      description: promo.description,
+      subtotalMinor: amounts.subtotal,
+      deliveryFeeMinor: amounts.deliveryFee,
+      discountMinor: promo.discountMinor,
+      totalMinor: amounts.total - promo.discountMinor,
+    };
+  }
+
   // ---------------------------------------------------------------- checkout
   /**
    * Creates the order from the server cart. Prices, fees and totals are recomputed from the database:
@@ -222,22 +246,29 @@ export class CommerceService {
         zone.deliveryFeeMinor,
         this.config.commerce.commissionBasisPoints,
       );
-      if (input.expectedTotalMinor !== undefined && input.expectedTotalMinor !== amounts.total) {
-        throw new ConflictException(`Prices changed: the total is now €${(amounts.total / 100).toFixed(2)}. Please review your cart.`);
+      const promo = input.promoCode ? await this.promos.evaluate(client, auth.userId, input.promoCode, amounts, true) : null;
+      const total = amounts.total - (promo?.discountMinor ?? 0);
+      if (input.expectedTotalMinor !== undefined && input.expectedTotalMinor !== total) {
+        throw new ConflictException(`Prices changed: the total is now €${(total / 100).toFixed(2)}. Please review your cart.`);
       }
 
       const order = await client.query<{ id: string }>(
         `INSERT INTO orders (customer_id, seller_id, source, subtotal_minor, delivery_fee_minor, total_minor, platform_commission_minor,
                              recipient_name, recipient_phone, delivery_address, delivery_location, service_zone_id,
-                             delivery_notes, gift_message, requested_delivery_at)
-         VALUES ($1, $2, 'CATALOG', $3, $4, $5, $6, $7, $8, $9, ${pointSql(10, 11)}, $12, $13, $14, $15) RETURNING id`,
+                             delivery_notes, gift_message, requested_delivery_at, discount_minor)
+         VALUES ($1, $2, 'CATALOG', $3, $4, $5, $6, $7, $8, $9, ${pointSql(10, 11)}, $12, $13, $14, $15, $16) RETURNING id`,
         [
-          auth.userId, first.seller_id, amounts.subtotal, amounts.deliveryFee, amounts.total, amounts.platformCommission,
+          auth.userId, first.seller_id, amounts.subtotal, amounts.deliveryFee, total, amounts.platformCommission,
           input.recipientName, input.recipientPhone, input.deliveryAddress, longitude, latitude, zone.id,
-          input.deliveryNotes ?? null, input.giftMessage ?? null, requestedAt,
+          input.deliveryNotes ?? null, input.giftMessage ?? null, requestedAt, promo?.discountMinor ?? 0,
         ],
       );
       const id = order.rows[0]?.id as string;
+      if (promo) {
+        await this.promos.record(client, id, auth.userId, promo).catch((error: unknown) => {
+          throw (error as { code?: string }).code === '23505' ? new ConflictException('You have already used this code.') : error;
+        });
+      }
       for (const line of lines.rows) {
         await client.query(
           `INSERT INTO order_items (order_id, product_id, name, unit_price_minor, quantity, line_total_minor) VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -363,6 +394,7 @@ export class CommerceService {
       if (locked.source === 'CATALOG') {
         await releaseStock(client, orderId);
       }
+      await this.promos.release(client, orderId);
       await client.query(`UPDATE deliveries SET status = 'CANCELLED', cancelled_at = now() WHERE order_id = $1 AND status IN ('OFFERED', 'ASSIGNED')`, [orderId]);
       return { order: cancelled, wasPaid };
     });

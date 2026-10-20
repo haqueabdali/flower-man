@@ -2,7 +2,9 @@ import {
   type AdminUser,
   capabilityChangeSchema,
   cancelOrderSchema,
+  type CreatePromoRequest,
   type CreateZoneRequest,
+  createPromoSchema,
   createSettlementSchema,
   createZoneSchema,
   type AdminReview,
@@ -14,6 +16,7 @@ import {
   type OrderSummary,
   type PartnerAccount,
   type PartnerBalance,
+  type PromoCodeView,
   type RefundRequest,
   refundSchema,
   type ReviewPartnerRequest,
@@ -24,6 +27,7 @@ import {
   type SettlementView,
   type UpdateZoneRequest,
   updateZoneSchema,
+  updatePromoSchema,
   userStatusSchema,
 } from '@flower-man/contracts';
 import { BadRequestException, Body, Controller, Get, HttpCode, Inject, HttpStatus, NotFoundException, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
@@ -40,6 +44,7 @@ import { PG_POOL } from '../database/database.module.js';
 import { DeliveryService } from '../delivery/delivery.service.js';
 import { LedgerService } from '../ledger/ledger.service.js';
 import { CommerceService } from '../orders/commerce.service.js';
+import { PromoService } from '../orders/promo.service.js';
 import { listOrders, loadOrderDetail } from '../orders/order-views.js';
 import { PartnersService } from '../partners/partners.service.js';
 import { PaymentsService } from '../payments/payments.service.js';
@@ -65,6 +70,7 @@ export class AdminController {
     private readonly customRequests: CustomRequestsService,
     private readonly ledger: LedgerService,
     private readonly reviews: ReviewsService,
+    private readonly promos: PromoService,
   ) {}
 
   @Get('analytics')
@@ -183,6 +189,23 @@ export class AdminController {
     response.setHeader('Content-Type', contentType);
     response.setHeader('Cache-Control', 'private, no-store');
     response.send(bytes);
+  }
+
+  @Get('promo-codes')
+  async promoCodes(): Promise<{ items: PromoCodeView[] }> {
+    return { items: await this.promos.list() };
+  }
+
+  @Post('promo-codes')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async createPromo(@CurrentAuth() auth: AuthenticatedContext, @Body(new ZodBodyPipe(createPromoSchema)) body: CreatePromoRequest): Promise<void> {
+    await this.promos.create(auth.userId, body);
+  }
+
+  @Patch('promo-codes/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async updatePromo(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string, @Body(new ZodBodyPipe(updatePromoSchema)) body: { active: boolean }): Promise<void> {
+    await this.promos.setActive(auth.userId, id, body.active);
   }
 
   @Get('reviews')

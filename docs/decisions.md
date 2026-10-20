@@ -355,3 +355,14 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   cancelled and refunded orders; commission from the ledger; payment-to-delivery time; ratings; new customers; top 10
   florists. The admin dashboard draws daily revenue as a single-series bar chart (brand colour, validated contrast on the
   card surface) with hover/focus details and a table view.
+
+## ADR-022: Discount codes
+
+- Admins create codes (`/admin/promo-codes`): percent of the flowers (optionally capped) or a fixed amount off, with an
+  optional minimum order, end date, total-use limit and "first order only". Codes can be deactivated, never edited.
+- The platform funds the discount: `orders.discount_minor` lowers `total_minor` (what the customer pays and what is
+  charged/refunded), while subtotal, commission, seller net and courier fee stay as without the code (migration 0017).
+  A discount never takes the total below €0.50 (`MIN_CHARGE_MINOR`, the Stripe minimum).
+- One use per customer (`promo_redemptions` partial unique index), checked and recorded inside the checkout transaction
+  with the code row locked, so limits hold under concurrency. Cancelling an order releases its redemption.
+- `POST /checkout/promo` previews the discount on the current cart; checkout recomputes everything.
