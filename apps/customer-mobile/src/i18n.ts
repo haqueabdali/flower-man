@@ -174,6 +174,18 @@ const en = {
   categoryFuneral: 'Funeral',
   categoryGift: 'Gifts',
   categoryOther: 'Other',
+  // reviews
+  reviewTitle: 'Rate your order',
+  reviewFlorist: 'Florist',
+  reviewCourier: 'Courier',
+  reviewComment: 'Comment (optional)',
+  reviewSubmit: 'Send review',
+  reviewChooseRating: 'Choose 1 to 5 stars for the florist.',
+  reviewYours: 'Your review',
+  reviewThanks: 'Thank you for your review!',
+  ratingSummary: '{average} ★ ({count} reviews)',
+  ratingNone: 'No reviews yet',
+  reviewsLatest: 'Latest reviews',
 } as const;
 
 type Key = keyof typeof en;
@@ -341,6 +353,17 @@ const it: { [K in Key]: string } = {
   categoryFuneral: 'Cordoglio',
   categoryGift: 'Regali',
   categoryOther: 'Altro',
+  reviewTitle: 'Valuta il tuo ordine',
+  reviewFlorist: 'Fiorista',
+  reviewCourier: 'Corriere',
+  reviewComment: 'Commento (facoltativo)',
+  reviewSubmit: 'Invia recensione',
+  reviewChooseRating: 'Scegli da 1 a 5 stelle per il fiorista.',
+  reviewYours: 'La tua recensione',
+  reviewThanks: 'Grazie per la recensione!',
+  ratingSummary: '{average} ★ ({count} recensioni)',
+  ratingNone: 'Ancora nessuna recensione',
+  reviewsLatest: 'Ultime recensioni',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

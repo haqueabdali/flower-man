@@ -14,6 +14,7 @@ import { pointSql, selectPoint, toGeoPoint } from '../common/geo.js';
 import { PG_POOL } from '../database/database.module.js';
 import { withTransaction } from '../database/transaction.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { toRating } from '../common/rating.js';
 import { ZonesService } from '../zones/zones.service.js';
 
 interface PartnerRow {
@@ -32,11 +33,13 @@ interface PartnerRow {
   verification_notes: string | null;
   courier_available: boolean;
   role: 'OWNER' | 'STAFF';
+  rating_sum: number;
+  rating_count: number;
 }
 
 const PARTNER_COLUMNS = `p.id, p.kind, p.display_name, p.legal_name, p.vat_number, p.phone, p.address,
   ${selectPoint('p.location', 'loc')}, p.service_zone_id, p.description, p.verification_status,
-  p.verification_notes, p.courier_available`;
+  p.verification_notes, p.courier_available, p.rating_sum, p.rating_count`;
 
 const toPartner = (row: PartnerRow): PartnerAccount => ({
   id: row.id,
@@ -53,6 +56,7 @@ const toPartner = (row: PartnerRow): PartnerAccount => ({
   verificationNotes: row.verification_notes,
   courierAvailable: row.courier_available,
   role: row.role,
+  rating: toRating(row.rating_sum, row.rating_count),
 });
 
 /** The approved partner account a request acts as. */

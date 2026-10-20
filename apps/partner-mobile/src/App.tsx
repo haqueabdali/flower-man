@@ -13,7 +13,7 @@ import { AccountScreen, InboxScreen } from './screens/account';
 import { AuthScreen, ResetPasswordScreen, VerifyEmailScreen } from './screens/auth';
 import { CourierJobScreen, CourierJobsScreen, EarningsScreen } from './screens/courier';
 import { ApplyScreen, HomeScreen, PartnerScreen } from './screens/home';
-import { OfferScreen, ProductEditScreen, ProductsScreen, RequestFeedScreen, SellerOrderScreen, SellerOrdersScreen } from './screens/seller';
+import { OfferScreen, ProductEditScreen, ProductsScreen, RequestFeedScreen, ReviewsScreen, SellerOrderScreen, SellerOrdersScreen } from './screens/seller';
 import { stopTracking } from './tracking';
 import { colors, Loading } from './ui';
 
@@ -117,6 +117,7 @@ function renderRoute(route: Route, user: AuthUser, onSignedOut: () => void): Rea
     case 'sellerOrder': return <SellerOrderScreen orderId={route.orderId} />;
     case 'products': return <ProductsScreen />;
     case 'productEdit': return <ProductEditScreen product={route.product} />;
+    case 'reviews': return <ReviewsScreen />;
     case 'requestFeed': return <RequestFeedScreen />;
     case 'offer': return <OfferScreen request={route.request as Parameters<typeof OfferScreen>[0]['request']} />;
     case 'courierJobs': return <CourierJobsScreen />;

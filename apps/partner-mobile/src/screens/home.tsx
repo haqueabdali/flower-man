@@ -1,12 +1,15 @@
-import type { PartnerAccount, PartnerApplicationRequest, VerificationStatus } from '@flower-man/contracts';
+import type { PartnerAccount, PartnerApplicationRequest, Rating, VerificationStatus } from '@flower-man/contracts';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 import { Switch, View } from 'react-native';
 
 import { api } from '../api';
-import { PARTNER_KIND_LABELS, t, VERIFICATION_STATUS_LABELS } from '../i18n';
+import { locale, PARTNER_KIND_LABELS, t, VERIFICATION_STATUS_LABELS } from '../i18n';
 import { useNavigation } from '../navigation';
 import { attempt, Body, Button, Card, Field, Loading, Muted, Pill, Screen, Strong } from '../ui';
+
+export const ratingText = (rating: Rating | null) =>
+  rating ? t('ratingSummary', { average: rating.average.toLocaleString(locale, { minimumFractionDigits: 1 }), count: rating.count }) : t('ratingNone');
 
 const STATUS_HELP: Record<VerificationStatus, string> = {
   DRAFT: t('statusHelpDraft'),
@@ -46,10 +49,12 @@ export function HomeScreen() {
       {seller && (
         <Card>
           <Strong>{seller.displayName}</Strong>
+          <Muted>{ratingText(seller.rating)}</Muted>
           <View style={{ gap: 8 }}>
             <Button title={t('homeOrders')} onPress={() => navigation.push({ name: 'sellerOrders' })} />
             <Button kind="secondary" title={t('homeRequests')} onPress={() => navigation.push({ name: 'requestFeed' })} />
             <Button kind="secondary" title={t('homeProducts')} onPress={() => navigation.push({ name: 'products' })} />
+            <Button kind="secondary" title={t('reviewsButton')} onPress={() => navigation.push({ name: 'reviews' })} />
             <Button kind="secondary" title={t('earnings')} onPress={() => navigation.push({ name: 'earnings', mode: 'seller' })} />
           </View>
         </Card>
@@ -65,6 +70,7 @@ function CourierPanel({ courier, onChange }: { courier: PartnerAccount; onChange
   return (
     <Card>
       <Strong>{t('courierPanelTitle', { name: courier.displayName })}</Strong>
+      <Muted>{ratingText(courier.rating)}</Muted>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Body>{courier.courierAvailable ? t('courierAvailable') : t('courierOffline')}</Body>
         <Switch

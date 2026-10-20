@@ -6,7 +6,7 @@ import { Alert, Image, Linking, View } from 'react-native';
 import { api } from '../api';
 import { locale, orderStatusLabel, t } from '../i18n';
 import { useNavigation } from '../navigation';
-import { attempt, Body, Button, Card, Loading, Muted, Screen, Strong } from '../ui';
+import { attempt, Body, Button, Card, Field, Loading, Muted, Screen, StarPicker, stars, Strong } from '../ui';
 
 export function OrdersScreen() {
   const navigation = useNavigation();
@@ -75,6 +75,15 @@ export function OrderScreen({ orderId }: { orderId: string }) {
           {delivery.status === 'DELIVERED' && <DeliveryPhoto orderId={order.id} />}
         </Card>
       )}
+      {order.canReview && <ReviewCard order={order} onDone={setOrder} />}
+      {order.review && (
+        <Card>
+          <Strong>{t('reviewYours')}</Strong>
+          <Body>{t('reviewFlorist')} {stars(order.review.sellerRating)}</Body>
+          {order.review.courierRating !== null && <Body>{t('reviewCourier')} {stars(order.review.courierRating)}</Body>}
+          {order.review.comment && <Muted>“{order.review.comment}”</Muted>}
+        </Card>
+      )}
       <Card>
         <Strong>{t('orderHistory')}</Strong>
         {order.history.map((entry) => <Muted key={entry.at + entry.to}>{new Date(entry.at).toLocaleString(locale)} · {orderStatusLabel(entry.to)}</Muted>)}
@@ -106,6 +115,32 @@ export function OrderScreen({ orderId }: { orderId: string }) {
         </View>
       )}
     </Screen>
+  );
+}
+
+function ReviewCard({ order, onDone }: { order: OrderDetail; onDone: (order: OrderDetail) => void }) {
+  const [sellerRating, setSellerRating] = useState(0);
+  const [courierRating, setCourierRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const hasCourier = Boolean(order.delivery?.courierName);
+  const submit = () =>
+    attempt(async () => {
+      if (sellerRating === 0) throw new Error(t('reviewChooseRating'));
+      await api.request(`orders/${order.id}/review`, {
+        method: 'POST',
+        body: { sellerRating, ...(hasCourier && courierRating > 0 ? { courierRating } : {}), ...(comment.trim() ? { comment: comment.trim() } : {}) },
+      });
+      onDone(await api.request<OrderDetail>(`orders/${order.id}`));
+      Alert.alert(t('reviewThanks'));
+    });
+  return (
+    <Card>
+      <Strong>{t('reviewTitle')}</Strong>
+      <StarPicker label={t('reviewFlorist')} value={sellerRating} onChange={setSellerRating} />
+      {hasCourier && <StarPicker label={t('reviewCourier')} value={courierRating} onChange={setCourierRating} />}
+      <Field label={t('reviewComment')} value={comment} onChangeText={setComment} multiline maxLength={1000} />
+      <Button title={t('reviewSubmit')} onPress={submit} />
+    </Card>
   );
 }
 

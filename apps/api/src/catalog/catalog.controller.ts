@@ -1,6 +1,8 @@
 import {
   type NearbySeller,
   type Product,
+  type PublicReview,
+  type Rating,
   PRODUCT_CATEGORIES,
   type ProductRequest,
   productSchema,
@@ -15,12 +17,21 @@ import { UuidPipe } from '../common/uuid-param.pipe.js';
 import { ZodBodyPipe } from '../common/zod-body.pipe.js';
 import { PartnersService, SELLER_HEADER } from '../partners/partners.service.js';
 import { parseCoordinates } from '../zones/zones.controller.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
 import { CatalogService } from './catalog.service.js';
 
 /** Public browsing: no account needed to look at flowers. */
 @Controller('catalog')
 export class CatalogController {
-  constructor(private readonly catalog: CatalogService) {}
+  constructor(
+    private readonly catalog: CatalogService,
+    private readonly reviews: ReviewsService,
+  ) {}
+
+  @Get('sellers/:id/reviews')
+  async sellerReviews(@Param('id', UuidPipe) id: string): Promise<{ rating: Rating | null; items: PublicReview[] }> {
+    return this.reviews.forSeller(id);
+  }
 
   @Get('products')
   async browse(

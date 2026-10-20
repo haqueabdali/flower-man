@@ -83,3 +83,19 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.line, gap: 4 },
   pill: { alignSelf: 'flex-start', backgroundColor: '#f3e3ea', color: colors.brand, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, fontSize: 12, overflow: 'hidden' },
 });
+
+/** 1–5 stars; tapping a star sets the rating. */
+export function StarPicker({ value, onChange, label }: { value: number; onChange: (rating: number) => void; label: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <Text style={{ minWidth: 80, color: colors.ink }}>{label}</Text>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Pressable key={star} accessibilityRole="button" accessibilityLabel={`${label} ${star}/5`} onPress={() => onChange(star)} hitSlop={6}>
+          <Text style={{ fontSize: 28, color: star <= value ? '#e0a100' : colors.line }}>★</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+export const stars = (rating: number) => '★'.repeat(rating) + '☆'.repeat(5 - rating);

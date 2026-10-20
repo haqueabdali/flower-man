@@ -6,6 +6,8 @@ import {
   type LedgerEntryView,
   type OrderDetail,
   type OrderSummary,
+  type PublicReview,
+  type Rating,
   type SettlementView,
   sellerRejectSchema,
 } from '@flower-man/contracts';
@@ -18,6 +20,7 @@ import { ZodBodyPipe } from '../common/zod-body.pipe.js';
 import { CustomRequestsService } from '../custom-requests/custom-requests.service.js';
 import { LedgerService } from '../ledger/ledger.service.js';
 import { PartnersService, SELLER_HEADER } from '../partners/partners.service.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
 import { CommerceService } from './commerce.service.js';
 
 /** Shops and freelance sellers. Access requires an APPROVED seller account (checked per request). */
@@ -29,6 +32,7 @@ export class SellerController {
     private readonly commerce: CommerceService,
     private readonly customRequests: CustomRequestsService,
     private readonly ledger: LedgerService,
+    private readonly reviews: ReviewsService,
   ) {}
 
   @Get('orders')
@@ -92,6 +96,11 @@ export class SellerController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async withdraw(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string, @Headers(SELLER_HEADER) sellerId?: string): Promise<void> {
     await this.customRequests.withdrawOffer(await this.partners.requireSeller(auth.userId, sellerId), id);
+  }
+
+  @Get('reviews')
+  async myReviews(@CurrentAuth() auth: AuthenticatedContext, @Headers(SELLER_HEADER) sellerId?: string): Promise<{ rating: Rating | null; items: PublicReview[] }> {
+    return this.reviews.forSeller((await this.partners.requireSeller(auth.userId, sellerId)).partnerId);
   }
 
   @Get('earnings')

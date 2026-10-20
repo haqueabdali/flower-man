@@ -12,6 +12,8 @@ import {
   type OrderDetail,
   type OrderSummary,
   type PaymentInstructions,
+  type ReviewOrderRequest,
+  reviewOrderSchema,
 } from '@flower-man/contracts';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Put, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
@@ -21,6 +23,7 @@ import { UuidPipe } from '../common/uuid-param.pipe.js';
 import { ZodBodyPipe } from '../common/zod-body.pipe.js';
 import { CustomRequestsService } from '../custom-requests/custom-requests.service.js';
 import { DeliveryService } from '../delivery/delivery.service.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
 import { CommerceService } from './commerce.service.js';
 
 /** Customer-facing commerce. Every route acts only on the signed-in customer's own data. */
@@ -32,6 +35,7 @@ export class CustomerController {
     private readonly commerce: CommerceService,
     private readonly customRequests: CustomRequestsService,
     private readonly delivery: DeliveryService,
+    private readonly reviews: ReviewsService,
   ) {}
 
   @Get('cart')
@@ -82,6 +86,12 @@ export class CustomerController {
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader('Content-Security-Policy', "default-src 'none'");
     response.send(bytes);
+  }
+
+  @Post('orders/:id/review')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async review(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string, @Body(new ZodBodyPipe(reviewOrderSchema)) body: ReviewOrderRequest): Promise<void> {
+    await this.reviews.review(auth.userId, id, body);
   }
 
   @Post('orders/:id/pay')

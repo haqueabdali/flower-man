@@ -5,6 +5,7 @@ import {
   type CreateZoneRequest,
   createSettlementSchema,
   createZoneSchema,
+  type AdminReview,
   type CustomRequestView,
   type MarketplaceHealth,
   type OrderDetail,
@@ -40,6 +41,7 @@ import { CommerceService } from '../orders/commerce.service.js';
 import { listOrders, loadOrderDetail } from '../orders/order-views.js';
 import { PartnersService } from '../partners/partners.service.js';
 import { PaymentsService } from '../payments/payments.service.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
 import { ZonesService } from '../zones/zones.service.js';
 import { AdminService } from './admin.service.js';
 
@@ -60,6 +62,7 @@ export class AdminController {
     private readonly delivery: DeliveryService,
     private readonly customRequests: CustomRequestsService,
     private readonly ledger: LedgerService,
+    private readonly reviews: ReviewsService,
   ) {}
 
   @Get('health')
@@ -169,6 +172,21 @@ export class AdminController {
     response.setHeader('Content-Type', contentType);
     response.setHeader('Cache-Control', 'private, no-store');
     response.send(bytes);
+  }
+
+  @Get('reviews')
+  async reviewList(): Promise<{ items: AdminReview[] }> {
+    return { items: await this.reviews.listForAdmin() };
+  }
+
+  @Post('reviews/:orderId/hide')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async hideReview(
+    @CurrentAuth() auth: AuthenticatedContext,
+    @Param('orderId', UuidPipe) orderId: string,
+    @Body(new ZodBodyPipe(cancelOrderSchema)) body: { reason: string },
+  ): Promise<void> {
+    await this.reviews.hide(auth.userId, orderId, body.reason);
   }
 
   @Get('custom-requests')

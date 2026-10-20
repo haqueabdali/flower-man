@@ -76,6 +76,12 @@ export type PartnerApplicationRequest = z.infer<typeof partnerApplicationSchema>
 export const updatePartnerSchema = partnerApplicationSchema.omit({ kind: true }).partial();
 export type UpdatePartnerRequest = z.infer<typeof updatePartnerSchema>;
 
+/** Average of the visible reviews (one decimal) and how many there are. */
+export interface Rating {
+  readonly average: number;
+  readonly count: number;
+}
+
 export interface PartnerAccount {
   readonly id: string;
   readonly kind: PartnerKind;
@@ -91,6 +97,7 @@ export interface PartnerAccount {
   readonly verificationNotes: string | null;
   readonly courierAvailable: boolean;
   readonly role: 'OWNER' | 'STAFF';
+  readonly rating: Rating | null;
 }
 
 export const reviewPartnerSchema = z.strictObject({
@@ -135,6 +142,7 @@ export interface Product {
   readonly imageUrl: string | null;
   /** Uploaded photo, relative to the API base URL (`${client.baseUrl}/${imagePath}`); changes when the photo changes. */
   readonly imagePath: string | null;
+  readonly sellerRating: Rating | null;
   readonly distanceMeters?: number;
 }
 
@@ -145,6 +153,7 @@ export interface NearbySeller {
   readonly description: string | null;
   readonly distanceMeters: number;
   readonly productCount: number;
+  readonly rating: Rating | null;
 }
 
 // ---------------------------------------------------------------- cart & checkout
@@ -221,6 +230,41 @@ export interface OrderDetail extends OrderSummary {
   readonly history: readonly { readonly from: OrderStatus | null; readonly to: OrderStatus; readonly actor: string; readonly at: string; readonly reason: string | null }[];
   readonly delivery: DeliveryTracking | null;
   readonly paymentStatus: string | null;
+  readonly review: OrderReview | null;
+  /** Delivered less than REVIEW_WINDOW_DAYS ago and not reviewed yet. */
+  readonly canReview: boolean;
+}
+
+export const REVIEW_WINDOW_DAYS = 30;
+
+export const reviewOrderSchema = z.strictObject({
+  sellerRating: z.number().int().min(1).max(5),
+  courierRating: z.number().int().min(1).max(5).optional(),
+  comment: z.string().trim().min(1).max(1000).optional(),
+});
+export type ReviewOrderRequest = z.infer<typeof reviewOrderSchema>;
+
+export interface OrderReview {
+  readonly sellerRating: number;
+  readonly courierRating: number | null;
+  readonly comment: string | null;
+  readonly createdAt: string;
+}
+
+/** Public review: no customer data. */
+export interface PublicReview {
+  readonly rating: number;
+  readonly comment: string | null;
+  readonly createdAt: string;
+}
+
+export interface AdminReview extends OrderReview {
+  readonly orderId: string;
+  readonly orderNumber: number;
+  readonly sellerName: string;
+  readonly courierName: string | null;
+  readonly customerEmail: string;
+  readonly hiddenAt: string | null;
 }
 
 export interface DeliveryTracking {

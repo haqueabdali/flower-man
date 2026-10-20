@@ -9,6 +9,7 @@ export type Route =
   | { name: 'sellerOrder'; orderId: string }
   | { name: 'products' }
   | { name: 'productEdit'; product: Product | null }
+  | { name: 'reviews' }
   | { name: 'requestFeed' }
   | { name: 'offer'; request: CustomRequestView }
   | { name: 'courierJobs' }

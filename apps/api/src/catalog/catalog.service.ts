@@ -5,6 +5,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import pg from 'pg';
 
 import { pointSql } from '../common/geo.js';
+import { toRating } from '../common/rating.js';
 import { PG_POOL } from '../database/database.module.js';
 import type { ActingPartner } from '../partners/partners.service.js';
 import { detectImageType, OBJECT_STORAGE, type ObjectStorage } from '../storage/object-storage.js';
@@ -23,11 +24,13 @@ interface ProductRow {
   stock: number | null;
   image_url: string | null;
   image_updated_at: Date | null;
+  rating_sum: number;
+  rating_count: number;
   distance_m?: number | null;
 }
 
 const PRODUCT_COLUMNS = `pr.id, pr.seller_id, p.display_name AS seller_name, p.kind AS seller_kind, pr.name, pr.description,
-  pr.category, pr.price_minor, pr.available, pr.stock, pr.image_url, pr.image_updated_at`;
+  pr.category, pr.price_minor, pr.available, pr.stock, pr.image_url, pr.image_updated_at, p.rating_sum, p.rating_count`;
 
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -45,6 +48,7 @@ const toProduct = (row: ProductRow): Product => ({
   stock: row.stock,
   imageUrl: row.image_url,
   imagePath: row.image_updated_at ? `catalog/products/${row.id}/image?v=${row.image_updated_at.getTime()}` : null,
+  sellerRating: toRating(row.rating_sum, row.rating_count),
   ...(row.distance_m === undefined || row.distance_m === null ? {} : { distanceMeters: Math.round(row.distance_m) }),
 });
 
@@ -170,8 +174,8 @@ export class CatalogService {
 
   async nearbySellers(latitude: number, longitude: number): Promise<NearbySeller[]> {
     const zone = await this.zones.requireActiveZone(latitude, longitude);
-    const result = await this.pool.query<{ id: string; kind: NearbySeller['kind']; display_name: string; description: string | null; distance_m: number; product_count: string }>(
-      `SELECT p.id, p.kind, p.display_name, p.description, ST_Distance(p.location, ${pointSql(2, 3)}) AS distance_m,
+    const result = await this.pool.query<{ id: string; kind: NearbySeller['kind']; display_name: string; description: string | null; distance_m: number; product_count: string; rating_sum: number; rating_count: number }>(
+      `SELECT p.id, p.kind, p.display_name, p.description, p.rating_sum, p.rating_count, ST_Distance(p.location, ${pointSql(2, 3)}) AS distance_m,
               (SELECT count(*) FROM products pr WHERE pr.seller_id = p.id AND pr.available AND pr.archived_at IS NULL) AS product_count
          FROM partner_accounts p
         WHERE p.service_zone_id = $1 AND p.verification_status = 'APPROVED' AND p.kind IN ('SHOP', 'FREELANCE_SELLER')
@@ -185,6 +189,7 @@ export class CatalogService {
       description: row.description,
       distanceMeters: Math.round(row.distance_m),
       productCount: Number(row.product_count),
+      rating: toRating(row.rating_sum, row.rating_count),
     }));
   }
 

@@ -1,13 +1,13 @@
 import { formatPrice, productImageUri } from '@flower-man/api-client';
-import { type Cart, PRODUCT_CATEGORIES, type Product, type ZoneCheckResponse } from '@flower-man/contracts';
+import { type Cart, PRODUCT_CATEGORIES, type Product, type PublicReview, type Rating, type ZoneCheckResponse } from '@flower-man/contracts';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { api } from '../api';
-import { categoryLabel, t } from '../i18n';
+import { categoryLabel, locale, t } from '../i18n';
 import { currentLocation } from '../location';
 import { useNavigation } from '../navigation';
-import { attempt, Body, Button, Card, colors, Loading, Muted, Pill, Screen, Strong } from '../ui';
+import { attempt, Body, Button, Card, colors, Loading, Muted, Pill, Screen, stars, Strong } from '../ui';
 
 export function ShopScreen({ emailVerified }: { emailVerified: boolean }) {
   const navigation = useNavigation();
@@ -56,7 +56,7 @@ export function ShopScreen({ emailVerified }: { emailVerified: boolean }) {
           <ProductPhoto product={product} height={160} />
           <Strong>{product.name}</Strong>
           <Muted>{product.sellerName}{product.distanceMeters !== undefined ? ` · ${t('shopDistance', { km: (product.distanceMeters / 1000).toFixed(1) })}` : ''}</Muted>
-          <Body>{formatPrice(product.priceMinor)}</Body>
+          <Body>{formatPrice(product.priceMinor)}{product.sellerRating ? `  ·  ${ratingText(product.sellerRating)}` : ''}</Body>
         </Card>
       ))}
       <Card onPress={() => navigation.push({ name: 'newRequest' })}>
@@ -102,6 +102,7 @@ export function ProductScreen({ product }: { product: Product }) {
       <Pill label={categoryLabel(product.category)} />
       <Strong>{formatPrice(product.priceMinor)}</Strong>
       <Muted>{t('productBy', { seller: product.sellerName, kind: product.sellerKind === 'SHOP' ? t('productKindShop') : t('productKindFreelancer') })}</Muted>
+      <Muted>{product.sellerRating ? ratingText(product.sellerRating) : t('ratingNone')}</Muted>
       {product.description && <Body>{product.description}</Body>}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
         <Button kind="secondary" title="−" onPress={() => setQuantity((q) => Math.max(1, q - 1))} />
@@ -117,6 +118,31 @@ export function ProductScreen({ product }: { product: Product }) {
           })
         }
       />
+      <SellerReviews sellerId={product.sellerId} />
     </Screen>
+  );
+}
+
+const ratingText = (rating: Rating) => t('ratingSummary', { average: rating.average.toLocaleString(locale, { minimumFractionDigits: 1 }), count: rating.count });
+
+function SellerReviews({ sellerId }: { sellerId: string }) {
+  const [reviews, setReviews] = useState<PublicReview[]>([]);
+  useEffect(() => {
+    void api
+      .request<{ items: PublicReview[] }>(`catalog/sellers/${sellerId}/reviews`, { auth: false })
+      .then((result) => setReviews(result.items.filter((review) => review.comment).slice(0, 3)))
+      .catch(() => undefined);
+  }, [sellerId]);
+  if (reviews.length === 0) return null;
+  return (
+    <Card>
+      <Strong>{t('reviewsLatest')}</Strong>
+      {reviews.map((review) => (
+        <View key={review.createdAt}>
+          <Body>{stars(review.rating)}</Body>
+          <Muted>“{review.comment}” · {new Date(review.createdAt).toLocaleDateString(locale)}</Muted>
+        </View>
+      ))}
+    </Card>
   );
 }

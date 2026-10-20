@@ -182,6 +182,12 @@ const en = {
   earningsRef: 'Ref. {reference}',
   earningsMovements: 'Movements',
   earningsPaidOut: ' · paid out',
+  // reviews
+  ratingSummary: '{average} ★ · {count} reviews',
+  ratingNone: 'No reviews yet',
+  reviewsButton: 'Reviews',
+  reviewsTitle: 'Customer reviews',
+  reviewsEmpty: 'Reviews appear here after your first delivered orders.',
 } as const;
 
 type Key = keyof typeof en;
@@ -359,6 +365,11 @@ const it: { [K in Key]: string } = {
   earningsRef: 'Rif. {reference}',
   earningsMovements: 'Movimenti',
   earningsPaidOut: ' · pagato',
+  ratingSummary: '{average} ★ · {count} recensioni',
+  ratingNone: 'Ancora nessuna recensione',
+  reviewsButton: 'Recensioni',
+  reviewsTitle: 'Recensioni dei clienti',
+  reviewsEmpty: 'Le recensioni compaiono qui dopo i primi ordini consegnati.',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

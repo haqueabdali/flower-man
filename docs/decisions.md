@@ -325,3 +325,13 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - Notifications are written in the recipient's language when they are created (`Localized` texts in the API), so the inbox and
   push messages match the phone. Emails stay bilingual (Italian first).
 - API error messages are still English; the apps show their own localized texts for client-side errors.
+
+## ADR-019: Reviews and ratings
+
+- After delivery the customer can review the order once, within 30 days: florist rating (1–5, required), courier rating
+  (1–5, optional), comment (optional, max 1000 characters). Enforced by the API and by the `order_reviews` primary key.
+- `partner_accounts.rating_sum/rating_count` are updated in the same transaction, so the catalogue shows the average without
+  aggregating reviews. Ratings appear on products, nearby sellers and partner accounts.
+- Public reviews (`GET /catalog/sellers/:id/reviews`) carry only rating, comment and date: no customer data.
+- Moderation: admins hide abusive reviews (`POST /admin/reviews/:orderId/hide`, audited). A hidden review leaves the public
+  list and the totals but is kept. The florist is notified of each new review.

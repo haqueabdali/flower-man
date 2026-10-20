@@ -289,6 +289,27 @@ describe('primary scenario: catalogue order → delivery → earnings → settle
     await assert.rejects(db.query('UPDATE ledger_entries SET settlement_id = NULL WHERE settlement_id IS NOT NULL'), /already part of settlement/);
     await assert.rejects(db.query('DELETE FROM order_status_history'), /append-only/);
 
+    // Review: once, by this customer, after delivery. Totals follow moderation.
+    assert.equal((await customer.get<OrderDetail>(`/orders/${orderId}`)).canReview, true);
+    await customer.post(`/orders/${orderId}/review`, { sellerRating: 6 }, 400);
+    await (await signUp('outsider')).post(`/orders/${orderId}/review`, { sellerRating: 1 }, 404);
+    await customer.post(`/orders/${orderId}/review`, { sellerRating: 5, courierRating: 4, comment: 'Bellissime rose!' }, 204);
+    await customer.post(`/orders/${orderId}/review`, { sellerRating: 1 }, 409);
+    const reviewed = await customer.get<OrderDetail>(`/orders/${orderId}`);
+    assert.equal(reviewed.canReview, false);
+    assert.equal(reviewed.review?.sellerRating, 5);
+    const publicReviews = await fetch(`${base}/catalog/sellers/${shop.partner.id}/reviews`).then((r) => r.json() as Promise<{ rating: { average: number; count: number } | null; items: { rating: number; comment: string | null }[] }>);
+    assert.deepEqual(publicReviews.rating, { average: 5, count: 1 });
+    assert.equal(publicReviews.items[0]?.comment, 'Bellissime rose!');
+    assert.equal(JSON.stringify(publicReviews).includes('@'), false, 'no customer data in public reviews');
+    assert.deepEqual((await customer.get<Product>(`/catalog/products/${rose.id}`)).sellerRating, { average: 5, count: 1 });
+    assert.deepEqual((await courier.user.get<PartnerAccount>(`/partner/accounts/${courier.partner.id}`)).rating, { average: 4, count: 1 });
+    await admin.post(`/admin/reviews/${orderId}/hide`, { reason: 'Test moderation' }, 204);
+    await admin.post(`/admin/reviews/${orderId}/hide`, { reason: 'Test moderation' }, 204);
+    assert.equal((await shop.user.get<{ rating: unknown; items: unknown[] }>('/seller/reviews')).rating, null);
+    assert.equal((await courier.user.get<PartnerAccount>(`/partner/accounts/${courier.partner.id}`)).rating, null);
+    assert.ok((await admin.get<{ items: { orderId: string; hiddenAt: string | null }[] }>('/admin/reviews')).items.some((r) => r.orderId === orderId && r.hiddenAt));
+
     // Notifications reached each party.
     const customerInbox = await customer.get<{ items: { type: string; title: string }[] }>('/me/notifications');
     for (const type of ['ORDER_PAID', 'ORDER_CONFIRMED', 'COURIER_ASSIGNED', 'COURIER_ARRIVING', 'ORDER_DELIVERED']) {

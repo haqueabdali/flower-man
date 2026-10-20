@@ -1,5 +1,5 @@
 import { formatPrice, productImageUri } from '@flower-man/api-client';
-import { type CustomOffer, type CustomRequestView, type OrderDetail, type OrderSummary, PRODUCT_CATEGORIES, type Product } from '@flower-man/contracts';
+import { type CustomOffer, type CustomRequestView, type OrderDetail, type OrderSummary, PRODUCT_CATEGORIES, type Product, type PublicReview, type Rating } from '@flower-man/contracts';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Switch, View } from 'react-native';
@@ -7,6 +7,7 @@ import { Alert, Image, Switch, View } from 'react-native';
 import { api } from '../api';
 import { CATEGORY_LABELS, DELIVERY_STATUS_LABELS, locale, ORDER_STATUS_LABELS, t } from '../i18n';
 import { useNavigation } from '../navigation';
+import { ratingText } from './home';
 import { attempt, Body, Button, Card, Field, Loading, Muted, Pill, Screen, Strong } from '../ui';
 
 const FILTERS = ['PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'DELIVERED'] as const;
@@ -238,6 +239,27 @@ export function OfferScreen({ request }: { request: FeedItem }) {
         }
       />
       {request.myOffer?.status === 'SUBMITTED' && <Button kind="danger" title={t('offerWithdraw')} onPress={() => attempt(async () => { await api.request(`seller/custom-requests/${request.id}/offer/withdraw`, { method: 'POST' }); navigation.reset({ name: 'requestFeed' }); })} />}
+    </Screen>
+  );
+}
+
+export function ReviewsScreen() {
+  const navigation = useNavigation();
+  const [data, setData] = useState<{ rating: Rating | null; items: PublicReview[] } | null>(null);
+  useEffect(() => {
+    void attempt(async () => setData(await api.request<{ rating: Rating | null; items: PublicReview[] }>('seller/reviews')));
+  }, []);
+  return (
+    <Screen title={t('reviewsTitle')} onBack={navigation.back}>
+      {!data ? <Loading /> : <Strong>{ratingText(data.rating)}</Strong>}
+      {data?.items.length === 0 && <Muted>{t('reviewsEmpty')}</Muted>}
+      {data?.items.map((review) => (
+        <Card key={review.createdAt}>
+          <Body>{'★'.repeat(review.rating) + '☆'.repeat(5 - review.rating)}</Body>
+          {review.comment && <Body>“{review.comment}”</Body>}
+          <Muted>{new Date(review.createdAt).toLocaleDateString(locale)}</Muted>
+        </Card>
+      ))}
     </Screen>
   );
 }
