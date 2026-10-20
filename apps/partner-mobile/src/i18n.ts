@@ -188,6 +188,8 @@ const en = {
   reviewsButton: 'Reviews',
   reviewsTitle: 'Customer reviews',
   reviewsEmpty: 'Reviews appear here after your first delivered orders.',
+  jobWhen: 'Deliver from {time}',
+  jobWhenAsap: 'Deliver as soon as possible',
 } as const;
 
 type Key = keyof typeof en;
@@ -370,6 +372,8 @@ const it: { [K in Key]: string } = {
   reviewsButton: 'Recensioni',
   reviewsTitle: 'Recensioni dei clienti',
   reviewsEmpty: 'Le recensioni compaiono qui dopo i primi ordini consegnati.',
+  jobWhen: 'Consegna dalle {time}',
+  jobWhenAsap: 'Consegna il prima possibile',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

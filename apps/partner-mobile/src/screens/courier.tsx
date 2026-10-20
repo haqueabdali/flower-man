@@ -12,6 +12,11 @@ import { attempt, Body, Button, Card, Loading, Muted, Pill, Screen, Strong } fro
 
 const km = (meters: number | null) => (meters === null ? '' : ` · ${(meters / 1000).toFixed(1)} km`);
 
+const deliveryWhen = (job: CourierJob) =>
+  job.requestedDeliveryAt
+    ? t('jobWhen', { time: new Date(job.requestedDeliveryAt).toLocaleString(locale, { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })
+    : t('jobWhenAsap');
+
 export function CourierJobsScreen() {
   const navigation = useNavigation();
   const [offered, setOffered] = useState<CourierJob[] | null>(null);
@@ -35,6 +40,7 @@ export function CourierJobsScreen() {
           <Pill label={DELIVERY_STATUS_LABELS[job.status]} />
           <Strong>#{job.orderNumber} · {job.pickupName}</Strong>
           <Muted>{t('jobsTo', { address: job.dropoffAddress })}</Muted>
+          <Muted>{deliveryWhen(job)}</Muted>
         </Card>
       ))}
       <Strong>{t('jobsAvailable')}</Strong>
@@ -44,6 +50,7 @@ export function CourierJobsScreen() {
           <Strong>{t('jobsEarn', { number: job.orderNumber, price: formatPrice(job.feeMinor) })}</Strong>
           <Muted>{t('jobsPickUpAt', { name: job.pickupName, distance: km(job.distanceMeters) })}</Muted>
           <Muted>{t('jobsDeliverTo', { address: job.dropoffAddress })}</Muted>
+          <Muted>{deliveryWhen(job)}</Muted>
           <Button
             title={t('jobsAccept')}
             onPress={() =>
@@ -104,6 +111,7 @@ export function CourierJobScreen({ job: initial }: { job: CourierJob }) {
       <Card>
         <Strong>{t('jobDeliverTo', { name: job.recipientName })}</Strong>
         <Body>{job.dropoffAddress}</Body>
+        <Strong>{deliveryWhen(job)}</Strong>
         {job.recipientPhone && <Button kind="secondary" title={t('jobCall', { phone: job.recipientPhone })} onPress={() => void Linking.openURL(`tel:${job.recipientPhone}`)} />}
         {job.status !== 'ASSIGNED' && <Button kind="secondary" title={t('jobNavigateCustomer')} onPress={() => openMaps(job.dropoffLocation.latitude, job.dropoffLocation.longitude)} />}
       </Card>

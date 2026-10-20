@@ -370,6 +370,8 @@ export interface CourierJob {
   /** Only once the courier holds the job. */
   readonly recipientPhone: string | null;
   readonly distanceMeters: number | null;
+  /** Delivery slot start chosen by the customer; null = as soon as possible. */
+  readonly requestedDeliveryAt: string | null;
 }
 
 // ---------------------------------------------------------------- notifications

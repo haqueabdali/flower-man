@@ -36,13 +36,14 @@ interface JobRow {
   recipient_phone: string;
   distance_m: number | null;
   proof_object_key: string | null;
+  requested_delivery_at: Date | null;
 }
 
 const JOB_SELECT = (distanceFrom: string | null) => `
   SELECT d.id, d.order_id, o.order_number, d.status, d.fee_minor, d.courier_id,
          s.display_name AS pickup_name, s.address AS pickup_address, ${selectPoint('d.pickup_location', 'pickup')},
          o.delivery_address AS dropoff_address, ${selectPoint('d.dropoff_location', 'drop')},
-         o.recipient_name, o.recipient_phone, d.proof_object_key,
+         o.recipient_name, o.recipient_phone, d.proof_object_key, o.requested_delivery_at,
          ${distanceFrom ? `ST_Distance(d.pickup_location, ${distanceFrom})` : 'NULL::float8'} AS distance_m
     FROM deliveries d JOIN orders o ON o.id = d.order_id JOIN partner_accounts s ON s.id = o.seller_id`;
 
@@ -59,6 +60,7 @@ const toJob = (row: JobRow, holder: boolean): CourierJob => ({
   recipientName: row.recipient_name,
   recipientPhone: holder ? row.recipient_phone : null,
   distanceMeters: row.distance_m === null ? null : Math.round(row.distance_m),
+  requestedDeliveryAt: row.requested_delivery_at?.toISOString() ?? null,
 });
 
 /** Courier dispatch, tracking, proof and completion. Every state change is checked server-side. */
