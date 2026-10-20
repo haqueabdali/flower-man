@@ -1,5 +1,5 @@
 import type { Cart, CartItemRequest, CheckoutRequest, CheckoutResponse, OrderDetail, OrderSummary, PromoPreview, PromoPreviewRequest, ReorderResponse } from '@flower-man/contracts';
-import { calculateOrderAmounts, type OrderStatus } from '@flower-man/domain';
+import { calculateOrderAmounts, isOpenAt, type OpeningHours, type OrderStatus, type Weekday } from '@flower-man/domain';
 import {
   BadRequestException,
   ConflictException,
@@ -41,6 +41,15 @@ export function validateRequestedDelivery(iso: string | undefined): Date | null 
   return at;
 }
 
+const ROME_PARTS = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+
+/** Opening hours are local to the florist: Italy (Europe/Rome), whatever the server's time zone. */
+export function isOpenInRome(hours: OpeningHours, at: Date): boolean {
+  const parts = Object.fromEntries(ROME_PARTS.formatToParts(at).map((part) => [part.type, part.value]));
+  const weekday = String(parts['weekday']).toLowerCase().slice(0, 3) as Weekday;
+  return isOpenAt(hours, weekday, Number(parts['hour']) * 60 + Number(parts['minute']));
+}
+
 export function requireVerifiedEmail(auth: AuthenticatedContext): void {
   if (!auth.user.emailVerified) {
     throw new ForbiddenException('Please verify your email address before placing an order.');
@@ -62,7 +71,10 @@ export class CommerceService {
 
   // ---------------------------------------------------------------- cart
   async getCart(customerId: string): Promise<Cart> {
-    const cart = await this.pool.query<{ seller_id: string | null }>('SELECT seller_id FROM carts WHERE customer_id = $1', [customerId]);
+    const cart = await this.pool.query<{ seller_id: string | null; operating_hours: Record<string, string> | null }>(
+      'SELECT c.seller_id, p.operating_hours FROM carts c LEFT JOIN partner_accounts p ON p.id = c.seller_id WHERE c.customer_id = $1',
+      [customerId],
+    );
     const items = await this.pool.query<{ product_id: string; name: string; quantity: number; unit_price_minor: number; available: boolean }>(
       `SELECT ci.product_id, pr.name, ci.quantity, pr.price_minor AS unit_price_minor,
               (pr.available AND pr.archived_at IS NULL AND (pr.stock IS NULL OR pr.stock >= ci.quantity)
@@ -81,6 +93,7 @@ export class CommerceService {
     }));
     return {
       sellerId: lines.length > 0 ? (cart.rows[0]?.seller_id ?? null) : null,
+      sellerOpeningHours: lines.length > 0 ? (cart.rows[0]?.operating_hours ?? {}) : {},
       items: lines,
       subtotalMinor: lines.reduce((sum, line) => sum + line.lineTotalMinor, 0),
     };
@@ -214,10 +227,11 @@ export class CommerceService {
         seller_id: string;
         seller_zone: string | null;
         seller_approved: boolean;
+        opening_hours: OpeningHours;
       }>(
         `SELECT ci.product_id, pr.name, ci.quantity, pr.price_minor, pr.stock,
                 (pr.available AND pr.archived_at IS NULL) AS sellable, pr.seller_id,
-                p.service_zone_id AS seller_zone, p.verification_status = 'APPROVED' AS seller_approved
+                p.service_zone_id AS seller_zone, p.verification_status = 'APPROVED' AS seller_approved, p.operating_hours AS opening_hours
            FROM cart_items ci JOIN products pr ON pr.id = ci.product_id JOIN partner_accounts p ON p.id = pr.seller_id
           WHERE ci.customer_id = $1 ORDER BY ci.product_id FOR UPDATE OF pr`,
         [auth.userId],
@@ -232,6 +246,9 @@ export class CommerceService {
       }
       if (first.seller_zone !== zone.id) {
         throw new BadRequestException('This seller does not deliver to that address.');
+      }
+      if (requestedAt && !isOpenInRome(first.opening_hours, requestedAt)) {
+        throw new BadRequestException('The florist is closed at that time. Choose another slot.');
       }
       for (const line of lines.rows) {
         if (!line.sellable) {

@@ -1,5 +1,5 @@
 import { formatPrice } from '@flower-man/api-client';
-import type { Cart, CheckoutResponse, PromoPreview } from '@flower-man/contracts';
+import { type Cart, type CheckoutResponse, isOpenAt, type OpeningHours, type PromoPreview, weekdayFromIndex } from '@flower-man/contracts';
 import { useStripe } from '@stripe/stripe-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -59,6 +59,10 @@ export function CheckoutScreen() {
   const [deliverAt, setDeliverAt] = useState<Date | null>(null);
   const [promoInput, setPromoInput] = useState('');
   const [promo, setPromo] = useState<PromoPreview | null>(null);
+  const [hours, setHours] = useState<OpeningHours>({});
+  useEffect(() => {
+    void api.request<Cart>('cart').then((cart) => setHours(cart.sellerOpeningHours)).catch(() => undefined);
+  }, []);
   const [busy, setBusy] = useState(false);
 
   const placeOrder = () =>
@@ -91,7 +95,7 @@ export function CheckoutScreen() {
       <Field label={t('checkoutRecipientPhone')} value={recipientPhone} onChangeText={setRecipientPhone} keyboardType="phone-pad" />
       <Field label={t('checkoutAddress')} value={deliveryAddress} onChangeText={setDeliveryAddress} placeholder={t('checkoutAddressPlaceholder')} />
       <Muted>{t('checkoutLocationNote')}</Muted>
-      <DeliveryTimePicker value={deliverAt} onChange={setDeliverAt} />
+      <DeliveryTimePicker value={deliverAt} onChange={setDeliverAt} hours={hours} />
       <Field label={t('checkoutNotes')} value={deliveryNotes} onChangeText={setDeliveryNotes} />
       <Field label={t('checkoutGift')} value={giftMessage} onChangeText={setGiftMessage} multiline />
       <Card>
@@ -181,7 +185,9 @@ export function PaymentScreen({ checkout }: { checkout: CheckoutResponse }) {
 const SLOT_HOURS = [9, 11, 13, 15, 17, 19];
 const LEAD_MS = 90 * 60_000;
 
-function DeliveryTimePicker({ value, onChange }: { value: Date | null; onChange: (value: Date | null) => void }) {
+const openAt = (hours: OpeningHours, date: Date) => isOpenAt(hours, weekdayFromIndex(date.getDay()), date.getHours() * 60 + date.getMinutes());
+
+function DeliveryTimePicker({ value, onChange, hours }: { value: Date | null; onChange: (value: Date | null) => void; hours: OpeningHours }) {
   const [dayOffset, setDayOffset] = useState(0);
   const now = Date.now();
   const day = (offset: number) => {
@@ -196,7 +202,7 @@ function DeliveryTimePicker({ value, onChange }: { value: Date | null; onChange:
     const start = day(dayOffset);
     start.setHours(hour);
     return start;
-  }).filter((start) => start.getTime() >= now + LEAD_MS);
+  }).filter((start) => start.getTime() >= now + LEAD_MS && openAt(hours, start));
   const time = (date: Date) => date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -218,7 +224,8 @@ function DeliveryTimePicker({ value, onChange }: { value: Date | null; onChange:
           />
         ))}
       </View>
-      {dayOffset === 0 && slots.length === 0 && <Muted>{t('checkoutNoSlots')}</Muted>}
+      {slots.length === 0 && <Muted>{dayOffset === 0 ? t('checkoutNoSlots') : t('checkoutClosedDay')}</Muted>}
+      {dayOffset === 0 && value === null && !openAt(hours, new Date()) && <Muted>{t('checkoutClosedNow')}</Muted>}
     </Card>
   );
 }

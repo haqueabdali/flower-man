@@ -636,3 +636,27 @@ describe('discount codes', () => {
     await other.post('/checkout', { ...delivery, promoCode: 'WELCOME10' }, 400);
   });
 });
+
+describe('opening hours', () => {
+  it('refuses scheduled deliveries when the florist is closed (Rome time)', async () => {
+    const patchHours = (openingHours: Record<string, string>) =>
+      shop.user.raw('PATCH', `/partner/accounts/${shop.partner.id}`, JSON.stringify({ openingHours }), { 'Content-Type': 'application/json' });
+    assert.equal((await patchHours({ mon: '19:00-09:00' })).status, 400);
+    const allDays = (value: string) => Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => [day, value]));
+    assert.equal((await patchHours(allDays('closed'))).status, 200);
+    assert.deepEqual((await shop.user.get<PartnerAccount>(`/partner/accounts/${shop.partner.id}`)).openingHours, allDays('closed'));
+
+    const peonies = await shop.user.post<Product>('/seller/products', { name: 'Hours peonies', category: 'BOUQUET', priceMinor: 2500 }, 201);
+    const buyer = await signUp('hours');
+    await buyer.put('/cart/items', { productId: peonies.id, quantity: 1 });
+    assert.deepEqual((await buyer.get<{ sellerOpeningHours: Record<string, string> }>('/cart')).sellerOpeningHours, allDays('closed'));
+    const order = {
+      recipientName: 'Sara', recipientPhone: '+393331234567', deliveryAddress: 'Via Tasso 8, Bergamo', deliveryLocation: BERGAMO_CENTRE,
+      requestedDeliveryAt: new Date(Date.now() + 26 * 3_600_000).toISOString(),
+    };
+    await buyer.post('/checkout', order, 400);
+    assert.equal((await patchHours(allDays('00:00-24:00'))).status, 200);
+    await buyer.post('/checkout', order, 201);
+    assert.equal((await patchHours({})).status, 200);
+  });
+});

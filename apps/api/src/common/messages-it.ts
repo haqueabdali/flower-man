@@ -60,6 +60,9 @@ const EXACT: Readonly<Record<string, string>> = {
   'Send the photo as the request body (Content-Type image/jpeg, image/png or image/webp).': 'Invia la foto come corpo della richiesta (Content-Type image/jpeg, image/png o image/webp).',
   // cart, orders, payments
   'Your cart is empty.': 'Il carrello è vuoto.',
+  'The florist is closed at that time. Choose another slot.': "A quell'ora il fiorista è chiuso. Scegli un'altra fascia.",
+  'Use HH:MM-HH:MM or closed.': 'Usa HH:MM-HH:MM oppure closed.',
+  'Opening must be before closing.': "L'apertura deve essere prima della chiusura.",
   'This code is not valid.': 'Questo codice non è valido.',
   'You have already used this code.': 'Hai già usato questo codice.',
   'This code has reached its limit.': 'Questo codice ha raggiunto il limite di utilizzi.',

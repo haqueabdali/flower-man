@@ -10,6 +10,9 @@ import {
   calculateOrderAmounts,
   canTransitionOrder,
   discountFor,
+  isOpenAt,
+  isValidRange,
+  weekdayFromIndex,
   formatEuro,
   multiplyMinor,
   sumMinor,
@@ -101,5 +104,26 @@ describe('discounts', () => {
     assert.equal(discountFor(amounts, { kind: 'FIXED', value: 500, maxDiscountMinor: null }), 500);
     assert.equal(discountFor(amounts, { kind: 'FIXED', value: 100_000, maxDiscountMinor: null }), 6520);
     assert.equal(discountFor(amounts, { kind: 'PERCENT', value: 100, maxDiscountMinor: null }), 5980);
+  });
+});
+
+describe('opening hours', () => {
+  const hours = { mon: '09:00-19:00', sat: '10:00-13:00', sun: 'closed' };
+
+  it('checks the day and the time, with days left out counting as closed', () => {
+    assert.equal(isOpenAt(hours, 'mon', 9 * 60), true);
+    assert.equal(isOpenAt(hours, 'mon', 19 * 60), false, 'closing time is exclusive');
+    assert.equal(isOpenAt(hours, 'sat', 12 * 60 + 59), true);
+    assert.equal(isOpenAt(hours, 'sun', 11 * 60), false);
+    assert.equal(isOpenAt(hours, 'tue', 11 * 60), false);
+    assert.equal(isOpenAt({}, 'tue', 3 * 60), true, 'no hours set: always open');
+  });
+
+  it('validates ranges and maps Date.getDay()', () => {
+    assert.equal(isValidRange('08:30-12:30'), true);
+    assert.equal(isValidRange('18:00-09:00'), false);
+    assert.equal(isValidRange('9-18'), false);
+    assert.equal(weekdayFromIndex(0), 'sun');
+    assert.equal(weekdayFromIndex(1), 'mon');
   });
 });

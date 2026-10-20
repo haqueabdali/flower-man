@@ -190,6 +190,17 @@ const en = {
   reviewsEmpty: 'Reviews appear here after your first delivered orders.',
   jobWhen: 'Deliver from {time}',
   jobWhenAsap: 'Deliver as soon as possible',
+  hoursTitle: 'Opening hours',
+  hoursHelp: 'Format 09:00-19:00. Leave a day empty when you are closed. Customers can only book delivery times when you are open.',
+  hoursSave: 'Save hours',
+  hoursSaved: 'Opening hours saved.',
+  dayMon: 'Monday',
+  dayTue: 'Tuesday',
+  dayWed: 'Wednesday',
+  dayThu: 'Thursday',
+  dayFri: 'Friday',
+  daySat: 'Saturday',
+  daySun: 'Sunday',
 } as const;
 
 type Key = keyof typeof en;
@@ -374,6 +385,17 @@ const it: { [K in Key]: string } = {
   reviewsEmpty: 'Le recensioni compaiono qui dopo i primi ordini consegnati.',
   jobWhen: 'Consegna dalle {time}',
   jobWhenAsap: 'Consegna il prima possibile',
+  hoursTitle: 'Orari di apertura',
+  hoursHelp: 'Formato 09:00-19:00. Lascia vuoto un giorno se sei chiuso. I clienti possono scegliere orari di consegna solo quando sei aperto.',
+  hoursSave: 'Salva orari',
+  hoursSaved: 'Orari salvati.',
+  dayMon: 'Lunedì',
+  dayTue: 'Martedì',
+  dayWed: 'Mercoledì',
+  dayThu: 'Giovedì',
+  dayFri: 'Venerdì',
+  daySat: 'Sabato',
+  daySun: 'Domenica',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

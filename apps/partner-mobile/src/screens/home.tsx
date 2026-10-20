@@ -1,7 +1,7 @@
-import type { PartnerAccount, PartnerApplicationRequest, Rating, VerificationStatus } from '@flower-man/contracts';
+import { type PartnerAccount, type PartnerApplicationRequest, type Rating, type VerificationStatus, type Weekday, WEEKDAYS } from '@flower-man/contracts';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
-import { Switch, View } from 'react-native';
+import { Alert, Switch, View } from 'react-native';
 
 import { api } from '../api';
 import { locale, PARTNER_KIND_LABELS, t, VERIFICATION_STATUS_LABELS } from '../i18n';
@@ -145,6 +145,34 @@ export function PartnerScreen({ partnerId }: { partnerId: string }) {
       {(partner.verificationStatus === 'DRAFT' || partner.verificationStatus === 'REJECTED') && partner.role === 'OWNER' && (
         <Button title={t('partnerSubmit')} onPress={() => attempt(async () => setPartner(await api.request<PartnerAccount>(`partner/accounts/${partner.id}/submit`, { method: 'POST' })))} />
       )}
+      {partner.kind !== 'COURIER' && partner.role === 'OWNER' && <OpeningHoursCard partner={partner} onSaved={setPartner} />}
     </Screen>
+  );
+}
+
+const DAY_LABELS: Record<Weekday, string> = {
+  mon: t('dayMon'), tue: t('dayTue'), wed: t('dayWed'), thu: t('dayThu'), fri: t('dayFri'), sat: t('daySat'), sun: t('daySun'),
+};
+
+function OpeningHoursCard({ partner, onSaved }: { partner: PartnerAccount; onSaved: (partner: PartnerAccount) => void }) {
+  const [hours, setHours] = useState<Record<Weekday, string>>(() =>
+    Object.fromEntries(WEEKDAYS.map((day) => [day, partner.openingHours[day] && partner.openingHours[day] !== 'closed' ? (partner.openingHours[day] as string) : ''])) as Record<Weekday, string>,
+  );
+  const save = () =>
+    attempt(async () => {
+      const anySet = WEEKDAYS.some((day) => hours[day].trim() !== '');
+      const openingHours = anySet ? Object.fromEntries(WEEKDAYS.map((day) => [day, hours[day].trim() || 'closed'])) : {};
+      onSaved(await api.request<PartnerAccount>(`partner/accounts/${partner.id}`, { method: 'PATCH', body: { openingHours } }));
+      Alert.alert(t('hoursSaved'));
+    });
+  return (
+    <Card>
+      <Strong>{t('hoursTitle')}</Strong>
+      <Muted>{t('hoursHelp')}</Muted>
+      {WEEKDAYS.map((day) => (
+        <Field key={day} label={DAY_LABELS[day]} value={hours[day]} placeholder="09:00-19:00" onChangeText={(value) => setHours((current) => ({ ...current, [day]: value }))} keyboardType="numbers-and-punctuation" />
+      ))}
+      <Button title={t('hoursSave')} onPress={save} />
+    </Card>
   );
 }

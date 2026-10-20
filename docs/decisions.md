@@ -366,3 +366,13 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - One use per customer (`promo_redemptions` partial unique index), checked and recorded inside the checkout transaction
   with the code row locked, so limits hold under concurrency. Cancelling an order releases its redemption.
 - `POST /checkout/promo` previews the discount on the current cart; checkout recomputes everything.
+
+## ADR-023: Opening hours
+
+- Sellers set opening hours per weekday ("HH:MM-HH:MM" or "closed"; `openingHoursSchema`), stored in
+  `partner_accounts.operating_hours`. No hours set means always open; once any day is set, missing days are closed.
+- The rule lives in `@flower-man/domain` (`isOpenAt`), re-exported by the contracts so the apps share it with the API.
+- Checkout refuses a scheduled delivery time when the florist is closed, evaluated in Europe/Rome regardless of the server
+  time zone. "As soon as possible" stays allowed (the order is prepared when the florist opens; the app says so).
+- The customer app only offers slots inside the cart seller's hours (`Cart.sellerOpeningHours`); the partner app has an
+  hours editor for owners. Couriers see the requested time on each job.

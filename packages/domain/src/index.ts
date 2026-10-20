@@ -19,6 +19,7 @@ export function assertNever(value: never, message = 'Unhandled value'): never {
 }
 
 export * from './delivery.js';
+export * from './hours.js';
 export * from './money.js';
 export * from './order.js';
 export * from './partner.js';

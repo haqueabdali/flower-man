@@ -35,11 +35,12 @@ interface PartnerRow {
   role: 'OWNER' | 'STAFF';
   rating_sum: number;
   rating_count: number;
+  operating_hours: Record<string, string>;
 }
 
 const PARTNER_COLUMNS = `p.id, p.kind, p.display_name, p.legal_name, p.vat_number, p.phone, p.address,
   ${selectPoint('p.location', 'loc')}, p.service_zone_id, p.description, p.verification_status,
-  p.verification_notes, p.courier_available, p.rating_sum, p.rating_count`;
+  p.verification_notes, p.courier_available, p.rating_sum, p.rating_count, p.operating_hours`;
 
 const toPartner = (row: PartnerRow): PartnerAccount => ({
   id: row.id,
@@ -57,6 +58,7 @@ const toPartner = (row: PartnerRow): PartnerAccount => ({
   courierAvailable: row.courier_available,
   role: row.role,
   rating: toRating(row.rating_sum, row.rating_count),
+  openingHours: row.operating_hours,
 });
 
 /** The approved partner account a request acts as. */
@@ -100,7 +102,7 @@ export class PartnersService {
           [
             userId, input.kind, input.displayName, input.legalName ?? null, input.vatNumber ?? null, input.phone,
             input.address ?? null, input.location?.longitude ?? null, input.location?.latitude ?? null,
-            zoneId, input.description ?? null, JSON.stringify(input.operatingHours ?? {}),
+            zoneId, input.description ?? null, JSON.stringify(input.openingHours ?? {}),
           ],
         );
         const id = inserted.rows[0]?.id as string;
@@ -159,7 +161,7 @@ export class PartnersService {
       [
         partnerId, input.displayName ?? null, input.legalName ?? null, input.vatNumber ?? null, input.phone ?? null,
         input.address ?? null, input.location?.longitude ?? null, input.location?.latitude ?? null, zoneId,
-        input.description ?? null, input.operatingHours ? JSON.stringify(input.operatingHours) : null,
+        input.description ?? null, input.openingHours ? JSON.stringify(input.openingHours) : null,
       ],
     );
     return this.getForMember(userId, partnerId);

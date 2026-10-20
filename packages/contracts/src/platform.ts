@@ -1,9 +1,10 @@
-import type { DeliveryStatus, OrderStatus, PartnerKind, SettlementStatus, VerificationStatus } from '@flower-man/domain';
+import { type DeliveryStatus, HOURS_PATTERN, isValidRange, type OrderStatus, type PartnerKind, type SettlementStatus, type VerificationStatus, WEEKDAYS } from '@flower-man/domain';
 import { z } from 'zod';
 
 import type { Capability } from './auth.js';
 
 export type { DeliveryStatus, OrderStatus, PartnerKind, SettlementStatus, VerificationStatus } from '@flower-man/domain';
+export { isOpenAt, type OpeningHours, type Weekday, WEEKDAYS, weekdayFromIndex } from '@flower-man/domain';
 
 const uuid = z.uuid();
 const phone = z.string().trim().regex(/^\+[1-9]\d{6,14}$/, { message: 'Use international format, e.g. +393331234567.' });
@@ -60,6 +61,12 @@ export type UpdateZoneRequest = z.infer<typeof updateZoneSchema>;
 // ---------------------------------------------------------------- partners
 export const PARTNER_KIND_VALUES = ['SHOP', 'FREELANCE_SELLER', 'COURIER'] as const;
 
+/** Per weekday "HH:MM-HH:MM" or "closed"; days left out are closed once any day is set. */
+export const openingHoursSchema = z.partialRecord(
+  z.enum(WEEKDAYS),
+  z.string().regex(HOURS_PATTERN, { message: 'Use HH:MM-HH:MM or closed.' }).refine(isValidRange, { message: 'Opening must be before closing.' }),
+);
+
 export const partnerApplicationSchema = z.strictObject({
   kind: z.enum(PARTNER_KIND_VALUES),
   displayName: z.string().trim().min(2).max(120),
@@ -69,7 +76,7 @@ export const partnerApplicationSchema = z.strictObject({
   address: z.string().trim().min(5).max(300).optional(),
   location: geoPointSchema.optional(),
   description: z.string().trim().max(2000).optional(),
-  operatingHours: z.record(z.string(), z.string().max(40)).optional(),
+  openingHours: openingHoursSchema.optional(),
 });
 export type PartnerApplicationRequest = z.infer<typeof partnerApplicationSchema>;
 
@@ -98,6 +105,7 @@ export interface PartnerAccount {
   readonly courierAvailable: boolean;
   readonly role: 'OWNER' | 'STAFF';
   readonly rating: Rating | null;
+  readonly openingHours: Readonly<Partial<Record<(typeof WEEKDAYS)[number], string>>>;
 }
 
 export const reviewPartnerSchema = z.strictObject({
@@ -162,6 +170,8 @@ export type CartItemRequest = z.infer<typeof cartItemSchema>;
 
 export interface Cart {
   readonly sellerId: string | null;
+  /** The cart seller's opening hours (empty = not set): the app only offers delivery slots when the florist is open. */
+  readonly sellerOpeningHours: Readonly<Partial<Record<(typeof WEEKDAYS)[number], string>>>;
   readonly items: readonly {
     readonly productId: string;
     readonly name: string;

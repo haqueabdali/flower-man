@@ -24,6 +24,7 @@ interface DemoPartner {
   readonly address: string;
   readonly location: { latitude: number; longitude: number };
   readonly products: readonly ProductRequest[];
+  readonly openingHours?: Readonly<Record<string, string>>;
 }
 
 const product = (name: string, category: ProductRequest['category'], priceMinor: number, description: string, stock = 20): ProductRequest => ({
@@ -43,6 +44,7 @@ const PARTNERS: readonly DemoPartner[] = [
     displayName: 'Fiori di Città Alta',
     address: 'Via Gombito 12, 24129 Bergamo BG',
     location: { latitude: 45.7037, longitude: 9.6623 },
+    openingHours: { mon: '15:00-19:30', tue: '09:00-19:30', wed: '09:00-19:30', thu: '09:00-19:30', fri: '09:00-19:30', sat: '09:00-19:30', sun: 'closed' },
     products: [
       product('Dozen red roses', 'ROSES', 2990, 'Twelve long-stem red roses, hand-tied.'),
       product('Spring bouquet', 'BOUQUET', 3490, 'Tulips, ranunculus and seasonal greenery.'),
@@ -158,8 +160,12 @@ async function main(): Promise<void> {
             address: demo.address,
             location: demo.location,
             ...(demo.kind === 'SHOP' ? { legalName: 'Fiori di Città Alta S.r.l.', vatNumber: 'IT12345678901' } : {}),
+            ...(demo.openingHours ? { openingHours: demo.openingHours } : {}),
           })
         ).data;
+      }
+      if (demo.openingHours && Object.keys(partner.openingHours).length === 0) {
+        partner = (await user.api.call<PartnerAccount>('PATCH', `/partner/accounts/${partner.id}`, { openingHours: demo.openingHours })).data;
       }
       if (partner.verificationStatus === 'DRAFT') {
         await user.api.call('POST', `/partner/accounts/${partner.id}/submit`);
