@@ -243,7 +243,13 @@ describe('primary scenario: catalogue order → delivery → earnings → settle
     assert.equal(notImage.status, 400);
     const proof = await courier.user.raw('POST', `/courier/deliveries/${job.deliveryId}/proof`, JPEG, { 'Content-Type': 'image/jpeg', 'X-Latitude': '45.698', 'X-Longitude': '9.667' });
     assert.equal(proof.status, 201);
+    assert.equal((await customer.raw('GET', `/orders/${orderId}/delivery-proof`)).status, 404, 'customer sees the photo only once delivered');
     await courier.user.post(`/courier/deliveries/${job.deliveryId}/complete`);
+    const customerProof = await customer.raw('GET', `/orders/${orderId}/delivery-proof`);
+    assert.equal(customerProof.status, 200);
+    assert.deepEqual(Buffer.from(await customerProof.arrayBuffer()), JPEG);
+    const stranger = await signUp('stranger');
+    assert.equal((await stranger.raw('GET', `/orders/${orderId}/delivery-proof`)).status, 404, 'only the customer of the order');
     await courier.user.post(`/courier/deliveries/${job.deliveryId}/locations`, { points: [{ ...BERGAMO_CENTRE, recordedAt: new Date().toISOString() }] }, 409);
 
     const done = await customer.get<OrderDetail>(`/orders/${orderId}`);

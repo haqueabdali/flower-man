@@ -1,7 +1,7 @@
 import { formatPrice } from '@flower-man/api-client';
 import type { OrderDetail, OrderSummary, PaymentInstructions } from '@flower-man/contracts';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Linking, View } from 'react-native';
+import { Alert, Image, Linking, View } from 'react-native';
 
 import { api } from '../api';
 import { useNavigation } from '../navigation';
@@ -86,6 +86,7 @@ export function OrderScreen({ orderId }: { orderId: string }) {
             </>
           )}
           {delivery.arrivedAt && !delivery.deliveredAt && <Strong>Your courier has arrived!</Strong>}
+          {delivery.status === 'DELIVERED' && <DeliveryPhoto orderId={order.id} />}
         </Card>
       )}
       <Card>
@@ -119,5 +120,25 @@ export function OrderScreen({ orderId }: { orderId: string }) {
         </View>
       )}
     </Screen>
+  );
+}
+
+/** The courier's proof photo, loaded with the customer's token (the endpoint is private to this order's customer). */
+function DeliveryPhoto({ orderId }: { orderId: string }) {
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    void api.accessToken().then(setToken);
+  }, []);
+  if (!token) return null;
+  return (
+    <>
+      <Muted>Delivery photo</Muted>
+      <Image
+        source={{ uri: `${api.baseUrl}/orders/${orderId}/delivery-proof`, headers: { Authorization: `Bearer ${token}` } }}
+        style={{ height: 220, borderRadius: 8 }}
+        resizeMode="cover"
+        accessibilityLabel="Photo taken by the courier at delivery"
+      />
+    </>
   );
 }
