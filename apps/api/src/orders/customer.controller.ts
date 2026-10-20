@@ -12,6 +12,7 @@ import {
   type OrderDetail,
   type OrderSummary,
   type PaymentInstructions,
+  type ReorderResponse,
   type ReviewOrderRequest,
   reviewOrderSchema,
 } from '@flower-man/contracts';
@@ -86,6 +87,12 @@ export class CustomerController {
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader('Content-Security-Policy', "default-src 'none'");
     response.send(bytes);
+  }
+
+  @Post('orders/:id/reorder')
+  @HttpCode(HttpStatus.OK)
+  async reorder(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string): Promise<ReorderResponse> {
+    return this.commerce.reorder(auth.userId, id);
   }
 
   @Post('orders/:id/review')

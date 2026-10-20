@@ -6,7 +6,9 @@ import {
   createSettlementSchema,
   createZoneSchema,
   type AdminReview,
+  ANALYTICS_PERIODS,
   type CustomRequestView,
+  type MarketplaceAnalytics,
   type MarketplaceHealth,
   type OrderDetail,
   type OrderSummary,
@@ -24,7 +26,7 @@ import {
   updateZoneSchema,
   userStatusSchema,
 } from '@flower-man/contracts';
-import { Body, Controller, Get, HttpCode, Inject, HttpStatus, NotFoundException, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Inject, HttpStatus, NotFoundException, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import pg from 'pg';
 import { z } from 'zod';
@@ -64,6 +66,15 @@ export class AdminController {
     private readonly ledger: LedgerService,
     private readonly reviews: ReviewsService,
   ) {}
+
+  @Get('analytics')
+  async analytics(@Query('days') days?: string): Promise<MarketplaceAnalytics> {
+    const period = Number(days ?? 30);
+    if (!(ANALYTICS_PERIODS as readonly number[]).includes(period)) {
+      throw new BadRequestException(`days must be one of ${ANALYTICS_PERIODS.join(', ')}.`);
+    }
+    return this.admin.analytics(period);
+  }
 
   @Get('health')
   async health(): Promise<MarketplaceHealth> {

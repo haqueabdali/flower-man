@@ -1,9 +1,10 @@
-import type { AdminUser, Capability, MarketplaceHealth } from '@flower-man/contracts';
+import type { AdminUser, Capability, MarketplaceAnalytics, MarketplaceHealth } from '@flower-man/contracts';
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import pg from 'pg';
 
 import type { AuthenticatedContext } from '../auth/auth.guard.js';
 import { recordAudit } from '../common/audit.js';
+import { toRating } from '../common/rating.js';
 import { PG_POOL } from '../database/database.module.js';
 import { withTransaction } from '../database/transaction.js';
 
@@ -37,6 +38,73 @@ export class AdminService {
       ordersByStatus: Object.fromEntries(byStatus.rows.map((r) => [r.status, Number(r.count)])),
       offeredDeliveries: n('offered_deliveries'),
       unsettledMinor: n('unsettled'),
+    };
+  }
+
+  async analytics(days: number): Promise<MarketplaceAnalytics> {
+    // The period starts at midnight (Rome), `days - 1` days ago, so "7 days" is today plus the 6 days before.
+    const since = `date_trunc('day', now() AT TIME ZONE 'Europe/Rome') - make_interval(days => $1::int - 1)`;
+    const paid = `SELECT o.id, o.seller_id, o.status, o.total_minor, h.occurred_at AS paid_at
+                    FROM orders o JOIN order_status_history h ON h.order_id = o.id AND h.to_status = 'PAID'
+                   WHERE (h.occurred_at AT TIME ZONE 'Europe/Rome') >= ${since}`;
+    const totals = await this.pool.query<Record<string, string | null>>(
+      `WITH paid AS (${paid}), kept AS (SELECT * FROM paid WHERE status NOT IN ('CANCELLED', 'REFUNDED'))
+       SELECT (SELECT count(*) FROM kept) AS orders,
+              (SELECT COALESCE(sum(total_minor), 0) FROM kept) AS revenue,
+              (SELECT count(*) FROM paid WHERE status IN ('CANCELLED', 'REFUNDED')) AS cancelled,
+              (SELECT COALESCE(-sum(amount_minor), 0) FROM ledger_entries
+                WHERE type = 'PLATFORM_COMMISSION' AND (created_at AT TIME ZONE 'Europe/Rome') >= ${since}) AS commission,
+              (SELECT count(*) FROM deliveries WHERE status = 'DELIVERED' AND (delivered_at AT TIME ZONE 'Europe/Rome') >= ${since}) AS delivered,
+              (SELECT avg(extract(epoch FROM d.delivered_at - h.occurred_at) / 60)
+                 FROM deliveries d JOIN order_status_history h ON h.order_id = d.order_id AND h.to_status = 'PAID'
+                WHERE d.status = 'DELIVERED' AND (d.delivered_at AT TIME ZONE 'Europe/Rome') >= ${since}) AS delivery_minutes,
+              (SELECT avg(seller_rating) FROM order_reviews WHERE hidden_at IS NULL AND (created_at AT TIME ZONE 'Europe/Rome') >= ${since}) AS rating,
+              (SELECT count(*) FROM order_reviews WHERE hidden_at IS NULL AND (created_at AT TIME ZONE 'Europe/Rome') >= ${since}) AS reviews,
+              (SELECT count(*) FROM users u WHERE (u.created_at AT TIME ZONE 'Europe/Rome') >= ${since}
+                  AND EXISTS (SELECT 1 FROM user_capabilities c WHERE c.user_id = u.id AND c.capability = 'CUSTOMER')) AS new_customers`,
+      [days],
+    );
+    const daily = await this.pool.query<{ day: string; orders: string; revenue: string }>(
+      `WITH kept AS (SELECT * FROM (${paid}) p WHERE status NOT IN ('CANCELLED', 'REFUNDED'))
+       SELECT to_char(d.day, 'YYYY-MM-DD') AS day, count(k.id) AS orders, COALESCE(sum(k.total_minor), 0) AS revenue
+         FROM generate_series(${since}, date_trunc('day', now() AT TIME ZONE 'Europe/Rome'), interval '1 day') AS d(day)
+         LEFT JOIN kept k ON date_trunc('day', k.paid_at AT TIME ZONE 'Europe/Rome') = d.day
+        GROUP BY d.day ORDER BY d.day`,
+      [days],
+    );
+    const sellers = await this.pool.query<{ seller_id: string; name: string; orders: string; revenue: string; rating_sum: number; rating_count: number }>(
+      `WITH kept AS (SELECT * FROM (${paid}) p WHERE status NOT IN ('CANCELLED', 'REFUNDED'))
+       SELECT k.seller_id, s.display_name AS name, count(*) AS orders, sum(k.total_minor) AS revenue, s.rating_sum, s.rating_count
+         FROM kept k JOIN partner_accounts s ON s.id = k.seller_id
+        GROUP BY k.seller_id, s.display_name, s.rating_sum, s.rating_count
+        ORDER BY revenue DESC LIMIT 10`,
+      [days],
+    );
+    const row = totals.rows[0] ?? {};
+    const n = (key: string) => Number(row[key] ?? 0);
+    const orders = n('orders');
+    const rating = row['rating'];
+    const minutes = row['delivery_minutes'];
+    return {
+      days,
+      orders,
+      revenueMinor: n('revenue'),
+      averageOrderMinor: orders > 0 ? Math.round(n('revenue') / orders) : 0,
+      commissionMinor: n('commission'),
+      deliveredOrders: n('delivered'),
+      cancelledOrders: n('cancelled'),
+      averageDeliveryMinutes: minutes === null || minutes === undefined ? null : Math.round(Number(minutes)),
+      averageRating: rating === null || rating === undefined ? null : Math.round(Number(rating) * 10) / 10,
+      reviews: n('reviews'),
+      newCustomers: n('new_customers'),
+      daily: daily.rows.map((d) => ({ date: d.day, orders: Number(d.orders), revenueMinor: Number(d.revenue) })),
+      topSellers: sellers.rows.map((s) => ({
+        sellerId: s.seller_id,
+        name: s.name,
+        orders: Number(s.orders),
+        revenueMinor: Number(s.revenue),
+        rating: toRating(s.rating_sum, s.rating_count),
+      })),
     };
   }
 

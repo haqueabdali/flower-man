@@ -31,3 +31,28 @@ button.link { background: none; border: none; cursor: pointer; }
 .badge-rejected, .badge-suspended, .badge-failed, .badge-cancelled, .badge-refunded, .badge-down { background: #ffebe9; color: var(--bad); }
 .login { max-width: 360px; margin: 12vh auto; display: flex; flex-direction: column; gap: 10px; }
 textarea { width: 100%; min-height: 120px; font-family: ui-monospace, monospace; font-size: 12px; }
+/* Revenue chart: single series in the brand colour (validated ≥ 3:1 on the card surface), recessive grid. */
+.chart { display: flex; flex-direction: column; gap: 8px; }
+.chart-body { display: grid; grid-template-columns: auto 1fr; grid-template-rows: 220px auto; column-gap: 8px; }
+.chart-axis { display: flex; flex-direction: column; justify-content: space-between; text-align: right; font-size: 11px; color: var(--muted); }
+.chart-axis span { transform: translateY(-50%); } .chart-axis span:first-child { transform: none; } .chart-axis span:last-child { transform: translateY(0); }
+.chart-plot { position: relative; border-bottom: 1px solid var(--muted); }
+.chart-grid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); }
+.chart-bars { position: absolute; inset: 0; display: flex; align-items: stretch; }
+.chart-slot { flex: 1; display: flex; align-items: flex-end; justify-content: center; padding: 0 1px; background: none; border: none; border-radius: 0; cursor: default; }
+.chart-slot:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.chart-slot.active { background: rgba(31, 35, 40, 0.05); }
+.chart-bar { display: block; width: 100%; max-width: 28px; background: var(--brand); border-radius: 4px 4px 0 0; }
+.chart-labels { display: flex; font-size: 11px; color: var(--muted); padding-top: 4px; }
+.chart-labels span { flex: 1; text-align: center; white-space: nowrap; overflow: visible; }
+.chart-tooltip { position: absolute; top: 4px; transform: translateX(-50%); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); white-space: nowrap; z-index: 1; }
+/* Narrow screens: the sidebar becomes a scrollable top bar. */
+@media (max-width: 760px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { flex-direction: row; overflow-x: auto; align-items: center; gap: 4px; padding: 8px 16px; }
+  .sidebar a, .sidebar .link { white-space: nowrap; }
+  .brand { margin: 0 8px 0 0; font-size: 16px; white-space: nowrap; } .brand small { display: none; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  main { padding: 16px; }
+  .chart-body { grid-template-rows: 180px auto; }
+}

@@ -344,3 +344,14 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   messages use the same dictionary.
 - `messages-it.test.ts` scans the API and contract sources: any client-facing message without an Italian translation fails
   `pnpm test` (and so CI).
+
+## ADR-021: Order again, delivery time slots, sales overview
+
+- **Order again** (`POST /orders/:id/reorder`): replaces the cart with the still-sold items of a past catalogue order from the
+  same seller, at today's prices, capped by stock; the response lists what could not be added. Custom bouquets are excluded.
+- **Delivery time**: the customer app offers "as soon as possible" or a two-hour slot over the next 7 days (at least 90 minutes
+  ahead). It sends the slot start as `requestedDeliveryAt`; the API keeps its own 60-minute / 30-day validation.
+- **Sales overview** (`GET /admin/analytics?days=7|30|90`): revenue and orders by payment day (Europe/Rome), excluding
+  cancelled and refunded orders; commission from the ledger; payment-to-delivery time; ratings; new customers; top 10
+  florists. The admin dashboard draws daily revenue as a single-series bar chart (brand colour, validated contrast on the
+  card surface) with hover/focus details and a table view.

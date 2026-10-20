@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { api } from '../api';
-import { t } from '../i18n';
+import { locale, t } from '../i18n';
 import { currentLocation } from '../location';
 import { useNavigation } from '../navigation';
 import { attempt, Body, Button, Card, Field, Loading, Muted, Screen, Strong } from '../ui';
@@ -56,6 +56,7 @@ export function CheckoutScreen() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [giftMessage, setGiftMessage] = useState('');
+  const [deliverAt, setDeliverAt] = useState<Date | null>(null);
   const [busy, setBusy] = useState(false);
 
   const placeOrder = () =>
@@ -72,6 +73,7 @@ export function CheckoutScreen() {
             deliveryLocation: { latitude: location.latitude, longitude: location.longitude },
             ...(deliveryNotes ? { deliveryNotes } : {}),
             ...(giftMessage ? { giftMessage } : {}),
+            ...(deliverAt ? { requestedDeliveryAt: deliverAt.toISOString() } : {}),
           },
         });
         navigation.reset({ name: 'payment', checkout });
@@ -86,6 +88,7 @@ export function CheckoutScreen() {
       <Field label={t('checkoutRecipientPhone')} value={recipientPhone} onChangeText={setRecipientPhone} keyboardType="phone-pad" />
       <Field label={t('checkoutAddress')} value={deliveryAddress} onChangeText={setDeliveryAddress} placeholder={t('checkoutAddressPlaceholder')} />
       <Muted>{t('checkoutLocationNote')}</Muted>
+      <DeliveryTimePicker value={deliverAt} onChange={setDeliverAt} />
       <Field label={t('checkoutNotes')} value={deliveryNotes} onChangeText={setDeliveryNotes} />
       <Field label={t('checkoutGift')} value={giftMessage} onChangeText={setGiftMessage} multiline />
       <Button title={busy ? t('checkoutPlacing') : t('checkoutContinue')} onPress={placeOrder} disabled={busy} />
@@ -143,5 +146,51 @@ export function PaymentScreen({ checkout }: { checkout: CheckoutResponse }) {
       )}
       <Button kind="secondary" title={t('paymentLater')} onPress={done} />
     </Screen>
+  );
+}
+
+/** Two-hour delivery slots for the next 7 days. The API needs at least one hour of notice; we keep 90 minutes. */
+const SLOT_HOURS = [9, 11, 13, 15, 17, 19];
+const LEAD_MS = 90 * 60_000;
+
+function DeliveryTimePicker({ value, onChange }: { value: Date | null; onChange: (value: Date | null) => void }) {
+  const [dayOffset, setDayOffset] = useState(0);
+  const now = Date.now();
+  const day = (offset: number) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + offset);
+    return date;
+  };
+  const dayLabel = (offset: number) =>
+    offset === 0 ? t('checkoutToday') : offset === 1 ? t('checkoutTomorrow') : day(offset).toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
+  const slots = SLOT_HOURS.map((hour) => {
+    const start = day(dayOffset);
+    start.setHours(hour);
+    return start;
+  }).filter((start) => start.getTime() >= now + LEAD_MS);
+  const time = (date: Date) => date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <Card>
+      <Strong>{t('checkoutWhen')}</Strong>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+        {[0, 1, 2, 3, 4, 5, 6].map((offset) => (
+          <Button key={offset} kind={dayOffset === offset ? 'primary' : 'secondary'} title={dayLabel(offset)} onPress={() => { setDayOffset(offset); onChange(null); }} />
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+        {dayOffset === 0 && <Button kind={value === null ? 'primary' : 'secondary'} title={t('checkoutAsap')} onPress={() => onChange(null)} />}
+        {slots.map((start) => (
+          <Button
+            key={start.getTime()}
+            kind={value?.getTime() === start.getTime() ? 'primary' : 'secondary'}
+            title={`${time(start)}–${time(new Date(start.getTime() + 2 * 3_600_000))}`}
+            onPress={() => onChange(start)}
+          />
+        ))}
+      </View>
+      {dayOffset === 0 && slots.length === 0 && <Muted>{t('checkoutNoSlots')}</Muted>}
+    </Card>
   );
 }

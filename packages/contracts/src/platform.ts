@@ -173,6 +173,13 @@ export interface Cart {
   readonly subtotalMinor: number;
 }
 
+/** "Order again": the cart now holds what is still available from a past order, at today's prices. */
+export interface ReorderResponse {
+  readonly cart: Cart;
+  /** Names of items that could not be added (no longer sold, or not enough stock). */
+  readonly unavailable: readonly string[];
+}
+
 const recipientAndDelivery = {
   recipientName: z.string().trim().min(2).max(120),
   recipientPhone: phone,
@@ -462,6 +469,27 @@ export interface MarketplaceHealth {
   readonly ordersByStatus: Readonly<Record<string, number>>;
   readonly offeredDeliveries: number;
   readonly unsettledMinor: number;
+}
+
+export const ANALYTICS_PERIODS = [7, 30, 90] as const;
+
+/** Sales overview for the admin dashboard. Days are calendar days in Europe/Rome. */
+export interface MarketplaceAnalytics {
+  readonly days: number;
+  /** Paid orders whose payment fell in the period, excluding cancelled and refunded ones. */
+  readonly orders: number;
+  readonly revenueMinor: number;
+  readonly averageOrderMinor: number;
+  readonly commissionMinor: number;
+  readonly deliveredOrders: number;
+  readonly cancelledOrders: number;
+  /** Payment → delivery, for orders delivered in the period. */
+  readonly averageDeliveryMinutes: number | null;
+  readonly averageRating: number | null;
+  readonly reviews: number;
+  readonly newCustomers: number;
+  readonly daily: readonly { readonly date: string; readonly orders: number; readonly revenueMinor: number }[];
+  readonly topSellers: readonly { readonly sellerId: string; readonly name: string; readonly orders: number; readonly revenueMinor: number; readonly rating: Rating | null }[];
 }
 
 export interface Page<T> {

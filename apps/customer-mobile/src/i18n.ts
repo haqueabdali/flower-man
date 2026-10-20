@@ -186,6 +186,14 @@ const en = {
   ratingSummary: '{average} ★ ({count} reviews)',
   ratingNone: 'No reviews yet',
   reviewsLatest: 'Latest reviews',
+  // delivery time & order again
+  checkoutWhen: 'Delivery time',
+  checkoutAsap: 'As soon as possible',
+  checkoutToday: 'Today',
+  checkoutTomorrow: 'Tomorrow',
+  checkoutNoSlots: 'No more time slots today: choose another day.',
+  orderAgain: 'Order again',
+  orderAgainPartial: 'Some items are no longer available: {items}',
 } as const;
 
 type Key = keyof typeof en;
@@ -364,6 +372,13 @@ const it: { [K in Key]: string } = {
   ratingSummary: '{average} ★ ({count} recensioni)',
   ratingNone: 'Ancora nessuna recensione',
   reviewsLatest: 'Ultime recensioni',
+  checkoutWhen: 'Orario di consegna',
+  checkoutAsap: 'Il prima possibile',
+  checkoutToday: 'Oggi',
+  checkoutTomorrow: 'Domani',
+  checkoutNoSlots: 'Oggi non ci sono più fasce orarie: scegli un altro giorno.',
+  orderAgain: 'Ordina di nuovo',
+  orderAgainPartial: 'Alcuni articoli non sono più disponibili: {items}',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

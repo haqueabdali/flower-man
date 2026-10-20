@@ -60,6 +60,8 @@ const EXACT: Readonly<Record<string, string>> = {
   'Send the photo as the request body (Content-Type image/jpeg, image/png or image/webp).': 'Invia la foto come corpo della richiesta (Content-Type image/jpeg, image/png o image/webp).',
   // cart, orders, payments
   'Your cart is empty.': 'Il carrello è vuoto.',
+  'Custom bouquets cannot be ordered again. Send a new request instead.': 'I mazzi su misura non si possono riordinare. Invia una nuova richiesta.',
+  'None of these flowers are available any more.': 'Nessuno di questi fiori è più disponibile.',
   'Your cart has flowers from another seller. Check out or empty it first.': "Il carrello contiene fiori di un altro venditore. Completa l'ordine o svuotalo prima.",
   'This seller does not deliver to that address.': 'Questo venditore non consegna a questo indirizzo.',
   'This seller is not accepting orders right now.': 'Questo venditore al momento non accetta ordini.',
@@ -131,6 +133,7 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, (...groups: string[]) => string]
   [/^An order in status (\w+) cannot be refunded\.$/, (s) => `Un ordine nello stato "${status(s)}" non può essere rimborsato.`],
   [/^Refund amount must be between 1 and (\d+) cents\.$/, (max) => `L'importo del rimborso deve essere tra 1 e ${max} centesimi.`],
   [/^category must be one of (.+)\.$/, (list) => `La categoria deve essere una tra: ${list}.`],
+  [/^days must be one of (.+)\.$/, (list) => `Il periodo deve essere uno tra: ${list} giorni.`],
   // Domain state machine (TransitionError).
   [/^(\w+) cannot go from (\w+) to (\w+) \(requested by \w+\)\.$/, (_name, from, to) => `Operazione non possibile: da "${status(from)}" a "${status(to)}".`],
 ];

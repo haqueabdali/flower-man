@@ -310,6 +310,24 @@ describe('primary scenario: catalogue order → delivery → earnings → settle
     assert.equal((await courier.user.get<PartnerAccount>(`/partner/accounts/${courier.partner.id}`)).rating, null);
     assert.ok((await admin.get<{ items: { orderId: string; hiddenAt: string | null }[] }>('/admin/reviews')).items.some((r) => r.orderId === orderId && r.hiddenAt));
 
+    // Order again: same seller, today's price, only what is still sold.
+    const again = await customer.post<{ cart: { sellerId: string | null; items: { productId: string; quantity: number }[] }; unavailable: string[] }>(`/orders/${orderId}/reorder`);
+    assert.equal(again.cart.sellerId, shop.partner.id);
+    assert.deepEqual(again.cart.items.map((i) => [i.productId, i.quantity]), [[rose.id, 2]]);
+    assert.deepEqual(again.unavailable, []);
+    await (await signUp('other-customer')).post(`/orders/${orderId}/reorder`, {}, 404);
+    await customer.raw('DELETE', '/cart');
+
+    // Sales overview for the admin dashboard.
+    await admin.get('/admin/analytics?days=5', 400);
+    const analytics = await admin.get<{ days: number; orders: number; revenueMinor: number; commissionMinor: number; deliveredOrders: number; averageDeliveryMinutes: number | null; daily: { date: string; orders: number }[]; topSellers: { sellerId: string; orders: number }[] }>('/admin/analytics?days=7');
+    assert.equal(analytics.daily.length, 7);
+    assert.ok(analytics.orders >= 1 && analytics.revenueMinor >= 6570);
+    assert.ok(analytics.commissionMinor > 0 && analytics.deliveredOrders >= 1 && analytics.averageDeliveryMinutes !== null);
+    assert.equal(analytics.daily.reduce((sum, day) => sum + day.orders, 0), analytics.orders);
+    assert.ok(analytics.topSellers.some((seller) => seller.sellerId === shop.partner.id));
+    await customer.get('/admin/analytics', 403);
+
     // Notifications reached each party.
     const customerInbox = await customer.get<{ items: { type: string; title: string }[] }>('/me/notifications');
     for (const type of ['ORDER_PAID', 'ORDER_CONFIRMED', 'COURIER_ASSIGNED', 'COURIER_ARRIVING', 'ORDER_DELIVERED']) {

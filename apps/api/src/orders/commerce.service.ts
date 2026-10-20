@@ -1,4 +1,4 @@
-import type { Cart, CartItemRequest, CheckoutRequest, CheckoutResponse, OrderDetail, OrderSummary } from '@flower-man/contracts';
+import type { Cart, CartItemRequest, CheckoutRequest, CheckoutResponse, OrderDetail, OrderSummary, ReorderResponse } from '@flower-man/contracts';
 import { calculateOrderAmounts, type OrderStatus } from '@flower-man/domain';
 import {
   BadRequestException,
@@ -128,6 +128,44 @@ export class CommerceService {
 
   async clearCart(customerId: string): Promise<void> {
     await this.pool.query('DELETE FROM cart_items WHERE customer_id = $1', [customerId]);
+  }
+
+  /** Replaces the cart with the still-available items of a past catalogue order, at current prices. */
+  async reorder(customerId: string, orderId: string): Promise<ReorderResponse> {
+    const unavailable = await withTransaction(this.pool, async (client) => {
+      const order = await client.query<{ seller_id: string; source: string }>('SELECT seller_id, source FROM orders WHERE id = $1 AND customer_id = $2', [orderId, customerId]);
+      const row = order.rows[0];
+      if (!row) {
+        throw new NotFoundException('Order not found.');
+      }
+      if (row.source !== 'CATALOG') {
+        throw new ConflictException('Custom bouquets cannot be ordered again. Send a new request instead.');
+      }
+      const items = await client.query<{ name: string; quantity: number; product_id: string | null; price_minor: number | null; stock: number | null; sellable: boolean }>(
+        `SELECT oi.name, oi.quantity, pr.id AS product_id, pr.price_minor, pr.stock,
+                COALESCE(pr.available AND pr.archived_at IS NULL AND p.verification_status = 'APPROVED' AND pr.seller_id = $2, false) AS sellable
+           FROM order_items oi LEFT JOIN products pr ON pr.id = oi.product_id LEFT JOIN partner_accounts p ON p.id = pr.seller_id
+          WHERE oi.order_id = $1 ORDER BY oi.name`,
+        [orderId, row.seller_id],
+      );
+      const lines = items.rows.flatMap((item) => {
+        const quantity = item.stock === null ? item.quantity : Math.min(item.quantity, item.stock);
+        return item.sellable && item.product_id && item.price_minor !== null && quantity > 0 ? [{ ...item, quantity, productId: item.product_id, priceMinor: item.price_minor }] : [];
+      });
+      if (lines.length === 0) {
+        throw new ConflictException('None of these flowers are available any more.');
+      }
+      await client.query(
+        `INSERT INTO carts (customer_id, seller_id) VALUES ($1, $2) ON CONFLICT (customer_id) DO UPDATE SET seller_id = EXCLUDED.seller_id, updated_at = now()`,
+        [customerId, row.seller_id],
+      );
+      await client.query('DELETE FROM cart_items WHERE customer_id = $1', [customerId]);
+      for (const line of lines) {
+        await client.query('INSERT INTO cart_items (customer_id, product_id, quantity, unit_price_minor) VALUES ($1, $2, $3, $4)', [customerId, line.productId, line.quantity, line.priceMinor]);
+      }
+      return items.rows.filter((item) => !lines.some((line) => line.name === item.name && line.quantity === item.quantity)).map((item) => item.name);
+    });
+    return { cart: await this.getCart(customerId), unavailable };
   }
 
   // ---------------------------------------------------------------- checkout

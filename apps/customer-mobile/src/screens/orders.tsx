@@ -1,5 +1,5 @@
 import { formatPrice } from '@flower-man/api-client';
-import type { OrderDetail, OrderSummary, PaymentInstructions } from '@flower-man/contracts';
+import type { OrderDetail, OrderSummary, PaymentInstructions, ReorderResponse } from '@flower-man/contracts';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Linking, View } from 'react-native';
 
@@ -76,6 +76,19 @@ export function OrderScreen({ orderId }: { orderId: string }) {
         </Card>
       )}
       {order.canReview && <ReviewCard order={order} onDone={setOrder} />}
+      {order.source === 'CATALOG' && (order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'REFUNDED') && (
+        <Button
+          kind="secondary"
+          title={t('orderAgain')}
+          onPress={() =>
+            attempt(async () => {
+              const result = await api.request<ReorderResponse>(`orders/${order.id}/reorder`, { method: 'POST' });
+              if (result.unavailable.length > 0) Alert.alert(t('orderAgain'), t('orderAgainPartial', { items: result.unavailable.join(', ') }));
+              navigation.push({ name: 'cart' });
+            })
+          }
+        />
+      )}
       {order.review && (
         <Card>
           <Strong>{t('reviewYours')}</Strong>
