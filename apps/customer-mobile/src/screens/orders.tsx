@@ -1,7 +1,7 @@
 import { formatPrice } from '@flower-man/api-client';
 import type { OrderDetail, OrderSummary, PaymentInstructions } from '@flower-man/contracts';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 
 import { api } from '../api';
 import { useNavigation } from '../navigation';
@@ -72,7 +72,19 @@ export function OrderScreen({ orderId }: { orderId: string }) {
           <Strong>Delivery</Strong>
           <Body>Courier: {delivery.courierName ?? 'being assigned'}</Body>
           {delivery.etaAt && order.status === 'IN_TRANSIT' && <Body>Arriving around {new Date(delivery.etaAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</Body>}
-          {delivery.lastLocation && <Muted>Last position {delivery.lastLocation.latitude.toFixed(4)}, {delivery.lastLocation.longitude.toFixed(4)} · {delivery.lastLocationAt ? new Date(delivery.lastLocationAt).toLocaleTimeString('it-IT') : ''}</Muted>}
+          {delivery.lastLocation && !delivery.deliveredAt && (
+            <>
+              <Muted>Last update {delivery.lastLocationAt ? new Date(delivery.lastLocationAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : ''}</Muted>
+              <Button
+                kind="secondary"
+                title="See courier on the map"
+                onPress={() => {
+                  const { latitude, longitude } = delivery.lastLocation!;
+                  void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`);
+                }}
+              />
+            </>
+          )}
           {delivery.arrivedAt && !delivery.deliveredAt && <Strong>Your courier has arrived!</Strong>}
         </Card>
       )}
