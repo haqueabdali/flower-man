@@ -210,6 +210,13 @@
     renderPick();
     if (state.current) fillSheet(state.current);
     if (!$("#result").hidden) buildMessage();
+    window.dispatchEvent(new CustomEvent("bz:lang", { detail: lang }));
+  }
+  function setLang(lang) {
+    if (lang === state.lang) return;
+    state.lang = lang;
+    store("bz.lang", lang);
+    applyLang();
   }
 
   // ---- Theme ----
@@ -331,13 +338,16 @@
   $("#sheetClose").addEventListener("click", closeSheet);
   sheet.addEventListener("click", function (e) { if (e.target === sheet) closeSheet(); });
   sheet.addEventListener("close", function () { state.current = null; });
-  $("#sheetAsk").addEventListener("click", function () {
-    var s = state.current;
-    closeSheet();
-    var box = $('#pick input[value="' + s.id + '"]');
+  function askAbout(id) {
+    var box = id && $('#pick input[value="' + id + '"]');
     if (box && !box.checked) { box.checked = true; saveDraft(); }
     $("#contact").scrollIntoView();
     setTimeout(function () { $("#fName").focus({ preventScroll: true }); }, 400);
+  }
+  $("#sheetAsk").addEventListener("click", function () {
+    var s = state.current;
+    closeSheet();
+    askAbout(s.id);
   });
 
   // ---- Contact form ----
@@ -542,11 +552,7 @@
 
   // ---- Boot ----
   $("#svcSearch").addEventListener("input", function (e) { state.q = e.target.value.trim(); renderGrid(); });
-  $("#langBtn").addEventListener("click", function () {
-    state.lang = state.lang === "bn" ? "en" : "bn";
-    store("bz.lang", state.lang);
-    applyLang();
-  });
+  $("#langBtn").addEventListener("click", function () { setLang(state.lang === "bn" ? "en" : "bn"); });
   $("#themeBtn").addEventListener("click", function () {
     theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
     store("bz.theme", theme === "system" ? null : theme);
@@ -555,6 +561,19 @@
 
   $("#cPhone").textContent = CONFIG.phone;
   $("#cEmail").textContent = CONFIG.email;
+  // Read-only data and actions for the virtual assistant (assistant.js).
+  window.Bareezah = {
+    CONFIG: CONFIG, SERVICES: SERVICES, CATEGORIES: CATEGORIES,
+    num: num, toast: toast, copy: copy,
+    getLang: function () { return state.lang; },
+    setLang: setLang,
+    openService: function (id) {
+      var s = SERVICES.filter(function (x) { return x.id === id; })[0];
+      if (s) openSheet(s);
+    },
+    askAbout: askAbout
+  };
+
   captureBangla();
   restoreDraft();
   applyTheme();

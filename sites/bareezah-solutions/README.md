@@ -11,6 +11,8 @@ There is no build step: the folder is the website.
 | `index.html` | Home page (Bangla is the default text) with SEO, social and structured-data tags |
 | `styles.css` | Design tokens, light/dark themes, responsive layout |
 | `app.js` | `CONFIG` (contact details, form delivery), services data, English text, all interactions |
+| `assistant.js`, `assistant.css` | Bareezah Assistant: floating mascot and virtual assistant |
+| `assets/mascot/` | 18 mascot expressions (9 moods, 9 gaze directions), transparent WebP |
 | `privacy.html` | Privacy policy (Bangla and English) |
 | `404.html` | "Page not found" page |
 | `assets/` | Favicons, app icons, social share image (`og-image.png`, 1200×630) |
@@ -61,6 +63,23 @@ Any static host works. Recommended options:
   schema.org `ProfessionalService` data, sitemap, robots.txt
 - Works without JavaScript for the core content (services list shown via `<noscript>`)
 - Accessible: keyboard focus styles, skip link, labelled controls, reduced-motion support
+
+## Bareezah Assistant
+
+A floating mascot sits in the bottom-right corner of every visit:
+
+- **Follows the visitor:** its head turns towards the mouse pointer in 9 directions, it smiles on hover,
+  and it dozes off (zzz) after 45 seconds without activity.
+- **Quick response:** a few seconds after the first page load it greets the visitor with one-tap topics
+  (services, fees, licences). Shown once per browser session.
+- **Virtual assistant:** a chat panel that answers in Bangla or English (it replies in the script the visitor
+  types in) about each of the 13 services, fees and quotations, licences and registrations, the work process,
+  contact details, privacy, and handing over to a person. Each answer shows a matching mascot expression.
+- **Actions:** open a service's detail sheet, jump to the contact form with that service already ticked,
+  copy the phone number or email, or message on WhatsApp.
+- It runs entirely in the browser from the site's own data (no API keys, no running costs). Answers come from
+  `SERVICES` and `CONFIG` in `app.js` and the texts and keywords in `assistant.js` (`S`, `INTENTS`, `SVC_WORDS`):
+  edit those to change what it says or understands.
 
 ## Run locally
 
