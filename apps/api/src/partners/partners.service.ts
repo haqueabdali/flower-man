@@ -67,6 +67,13 @@ export interface ActingPartner {
 /** Header a user with several seller accounts sends to choose one. */
 export const SELLER_HEADER = 'x-seller-id';
 
+
+const VERIFICATION_IT: Readonly<Record<'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED', string>> = {
+  UNDER_REVIEW: 'la verifica è in corso',
+  APPROVED: 'il tuo account è stato approvato',
+  REJECTED: 'la richiesta non è stata approvata',
+  SUSPENDED: 'il tuo account è stato sospeso',
+};
 @Injectable()
 export class PartnersService {
   constructor(
@@ -205,8 +212,11 @@ export class PartnersService {
     await this.notifications.safely(() =>
       this.notifications.notifyUser(notifyOwner.owner_user_id, {
         type: 'PARTNER_VERIFICATION',
-        title: 'Flower Man partner account',
-        body: `${notifyOwner.display_name}: verification status is now ${input.status}.`,
+        title: { it: 'Account partner Flower Man', en: 'Flower Man partner account' },
+        body: {
+          it: `${notifyOwner.display_name}: ${VERIFICATION_IT[input.status]}.`,
+          en: `${notifyOwner.display_name}: verification status is now ${input.status.replaceAll('_', ' ').toLowerCase()}.`,
+        },
         data: { partnerId, status: input.status },
       }),
     );

@@ -1,5 +1,5 @@
-import { deletionRequestSchema } from '@flower-man/contracts';
-import { Body, ConflictException, Controller, HttpCode, HttpStatus, Inject, Post, UseGuards } from '@nestjs/common';
+import { deletionRequestSchema, type PreferencesRequest, preferencesSchema } from '@flower-man/contracts';
+import { Body, ConflictException, Controller, HttpCode, HttpStatus, Inject, Post, Put, UseGuards } from '@nestjs/common';
 import pg from 'pg';
 
 import { type AuthenticatedContext, AuthGuard, CurrentAuth } from '../auth/auth.guard.js';
@@ -24,5 +24,12 @@ export class MeController {
       throw error;
     }
     return { status: 'PENDING' };
+  }
+
+  /** The apps send the device language at sign-in; notifications are then written in it. */
+  @Put('preferences')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async preferences(@CurrentAuth() auth: AuthenticatedContext, @Body(new ZodBodyPipe(preferencesSchema)) body: PreferencesRequest): Promise<void> {
+    await this.pool.query('UPDATE users SET language = $2, updated_at = now() WHERE id = $1', [auth.userId, body.language]);
   }
 }

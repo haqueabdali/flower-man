@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { api } from '../api';
+import { t } from '../i18n';
 import { attempt, Button, Field, Muted, Screen } from '../ui';
 
 export function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
@@ -21,7 +22,7 @@ export function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
         else if (mode === 'register') await api.register({ email, password, fullName, ...(phone ? { phone } : {}) });
         else {
           await api.request('auth/password-reset/request', { method: 'POST', body: { email }, auth: false });
-          setMessage('If an account exists for this email, a reset link is on its way.');
+          setMessage(t('authResetSent'));
           return;
         }
         onSignedIn();
@@ -31,19 +32,19 @@ export function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
     });
 
   return (
-    <Screen title={mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create account' : 'Reset password'}>
-      <Text style={{ fontSize: 28, textAlign: 'center' }}>🌸 Flower Man Partner</Text>
-      <Muted>Partner app for florists and couriers.</Muted>
-      {mode === 'register' && <Field label="Full name" value={fullName} onChangeText={setFullName} autoComplete="name" />}
-      <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
-      {mode !== 'forgot' && <Field label="Password (min. 10 characters)" value={password} onChangeText={setPassword} secureTextEntry autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />}
-      {mode === 'register' && <Field label="Phone (optional, +39…)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />}
-      <Button title={busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create account' : 'Send reset link'} onPress={submit} disabled={busy} />
+    <Screen title={mode === 'login' ? t('authSignIn') : mode === 'register' ? t('authCreateAccount') : t('authResetPassword')}>
+      <Text style={{ fontSize: 28, textAlign: 'center' }}>{t('authBrand')}</Text>
+      <Muted>{t('authTagline')}</Muted>
+      {mode === 'register' && <Field label={t('authFullName')} value={fullName} onChangeText={setFullName} autoComplete="name" />}
+      <Field label={t('authEmail')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+      {mode !== 'forgot' && <Field label={t('authPassword')} value={password} onChangeText={setPassword} secureTextEntry autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />}
+      {mode === 'register' && <Field label={t('authPhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />}
+      <Button title={busy ? t('authWait') : mode === 'login' ? t('authSignIn') : mode === 'register' ? t('authCreateAccount') : t('authSendReset')} onPress={submit} disabled={busy} />
       {message && <Muted>{message}</Muted>}
       <View style={{ gap: 8, marginTop: 8 }}>
-        {mode !== 'login' && <Button kind="secondary" title="I have an account" onPress={() => setMode('login')} />}
-        {mode !== 'register' && <Button kind="secondary" title="Create an account" onPress={() => setMode('register')} />}
-        {mode === 'login' && <Button kind="secondary" title="Forgot password?" onPress={() => setMode('forgot')} />}
+        {mode !== 'login' && <Button kind="secondary" title={t('authHaveAccount')} onPress={() => setMode('login')} />}
+        {mode !== 'register' && <Button kind="secondary" title={t('authCreateAnAccount')} onPress={() => setMode('register')} />}
+        {mode === 'login' && <Button kind="secondary" title={t('authForgot')} onPress={() => setMode('forgot')} />}
       </View>
     </Screen>
   );
@@ -52,11 +53,11 @@ export function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
 export function VerifyEmailScreen({ token, onDone }: { token: string; onDone: () => void }) {
   const [state, setState] = useState<'idle' | 'ok'>('idle');
   return (
-    <Screen title="Confirm email" onBack={onDone}>
-      {state === 'ok' ? <Muted>Your email is confirmed. Thank you!</Muted> : <Muted>Confirm your email address to start ordering.</Muted>}
+    <Screen title={t('verifyTitle')} onBack={onDone}>
+      {state === 'ok' ? <Muted>{t('verifyDone')}</Muted> : <Muted>{t('verifyPrompt')}</Muted>}
       {state === 'idle' && (
         <Button
-          title="Confirm my email"
+          title={t('verifyButton')}
           onPress={() =>
             attempt(async () => {
               await api.request('auth/email-verification/confirm', { method: 'POST', body: { token }, auth: false });
@@ -66,7 +67,7 @@ export function VerifyEmailScreen({ token, onDone }: { token: string; onDone: ()
           }
         />
       )}
-      {state === 'ok' && <Button title="Continue" onPress={onDone} />}
+      {state === 'ok' && <Button title={t('verifyContinue')} onPress={onDone} />}
     </Screen>
   );
 }
@@ -74,10 +75,10 @@ export function VerifyEmailScreen({ token, onDone }: { token: string; onDone: ()
 export function ResetPasswordScreen({ token, onDone }: { token: string; onDone: () => void }) {
   const [password, setPassword] = useState('');
   return (
-    <Screen title="New password" onBack={onDone}>
-      <Field label="New password (min. 10 characters)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
+    <Screen title={t('resetTitle')} onBack={onDone}>
+      <Field label={t('resetField')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
       <Button
-        title="Save password"
+        title={t('resetSave')}
         onPress={() =>
           attempt(async () => {
             await api.request('auth/password-reset/confirm', { method: 'POST', body: { token, newPassword: password }, auth: false });
@@ -86,7 +87,7 @@ export function ResetPasswordScreen({ token, onDone }: { token: string; onDone: 
           })
         }
       />
-      <Muted>For your security you will be signed out on every device.</Muted>
+      <Muted>{t('resetSignedOut')}</Muted>
     </Screen>
   );
 }

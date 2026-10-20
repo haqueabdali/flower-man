@@ -3,7 +3,7 @@ import 'reflect-metadata';
 
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -172,6 +172,9 @@ describe('primary scenario: catalogue order → delivery → earnings → settle
     });
     const tokens = (await signup.json()) as AuthTokensResponse;
     const customer = client(tokens.accessToken, tokens.user.id);
+    // This customer's phone is in English; everyone else keeps the Italian default.
+    await customer.put('/me/preferences', { language: 'de' }, 400);
+    await customer.put('/me/preferences', { language: 'en' }, 204);
     let token: string | undefined;
     for (let i = 0; i < 50 && !token; i += 1) {
       token = /token=([A-Za-z0-9_-]+)/.exec(mailbox.sent.find((m) => m.to === tokens.user.email)?.text ?? '')?.[1];
@@ -243,7 +246,13 @@ describe('primary scenario: catalogue order → delivery → earnings → settle
     assert.equal(notImage.status, 400);
     const proof = await courier.user.raw('POST', `/courier/deliveries/${job.deliveryId}/proof`, JPEG, { 'Content-Type': 'image/jpeg', 'X-Latitude': '45.698', 'X-Longitude': '9.667' });
     assert.equal(proof.status, 201);
+    assert.equal((await customer.raw('GET', `/orders/${orderId}/delivery-proof`)).status, 404, 'customer sees the photo only once delivered');
     await courier.user.post(`/courier/deliveries/${job.deliveryId}/complete`);
+    const customerProof = await customer.raw('GET', `/orders/${orderId}/delivery-proof`);
+    assert.equal(customerProof.status, 200);
+    assert.deepEqual(Buffer.from(await customerProof.arrayBuffer()), JPEG);
+    const stranger = await signUp('stranger');
+    assert.equal((await stranger.raw('GET', `/orders/${orderId}/delivery-proof`)).status, 404, 'only the customer of the order');
     await courier.user.post(`/courier/deliveries/${job.deliveryId}/locations`, { points: [{ ...BERGAMO_CENTRE, recordedAt: new Date().toISOString() }] }, 409);
 
     const done = await customer.get<OrderDetail>(`/orders/${orderId}`);
@@ -281,12 +290,13 @@ describe('primary scenario: catalogue order → delivery → earnings → settle
     await assert.rejects(db.query('DELETE FROM order_status_history'), /append-only/);
 
     // Notifications reached each party.
-    const customerInbox = await customer.get<{ items: { type: string }[] }>('/me/notifications');
+    const customerInbox = await customer.get<{ items: { type: string; title: string }[] }>('/me/notifications');
     for (const type of ['ORDER_PAID', 'ORDER_CONFIRMED', 'COURIER_ASSIGNED', 'COURIER_ARRIVING', 'ORDER_DELIVERED']) {
       assert.ok(customerInbox.items.some((n) => n.type === type), `customer missing ${type}`);
     }
-    const sellerInbox = await shop.user.get<{ items: { type: string }[] }>('/me/notifications');
-    assert.ok(sellerInbox.items.some((n) => n.type === 'NEW_ORDER'));
+    assert.equal(customerInbox.items.find((n) => n.type === 'ORDER_DELIVERED')?.title, 'Delivered', 'in the customer language (en)');
+    const sellerInbox = await shop.user.get<{ items: { type: string; title: string }[] }>('/me/notifications');
+    assert.equal(sellerInbox.items.find((n) => n.type === 'NEW_ORDER')?.title, 'Nuovo ordine', 'Italian by default');
   });
 });
 
@@ -509,3 +519,35 @@ describe('platform owner bootstrap', () => {
     await assert.rejects(run(process.execPath, [cli], { env: { ...env, PLATFORM_OWNER_PASSWORD: 'short' } }));
   });
 });
+
+describe('product photos', () => {
+  it('lets the seller upload a photo that anyone can load, and checks the bytes', async () => {
+    const upload = (who: Client, productId: string, body: Buffer, type = 'image/jpeg') =>
+      who.raw('PUT', `/seller/products/${productId}/image`, body, { 'Content-Type': type });
+
+    // Text pretending to be a JPEG is refused; so is another seller's product.
+    assert.equal((await upload(shop.user, rose.id, Buffer.from('not an image'))).status, 400);
+    assert.equal((await upload(freelancer.user, rose.id, JPEG)).status, 404);
+
+    const response = await upload(shop.user, rose.id, JPEG);
+    assert.equal(response.status, 200, await response.clone().text());
+    const updated = (await response.json()) as Product;
+    assert.match(updated.imagePath ?? '', new RegExp(`^catalog/products/${rose.id}/image\\?v=\\d+$`));
+
+    // Public, typed from the bytes, cacheable per version.
+    const image = await fetch(`${base}/${updated.imagePath}`);
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get('content-type'), 'image/jpeg');
+    assert.match(image.headers.get('cache-control') ?? '', /immutable/);
+    assert.deepEqual(Buffer.from(await image.arrayBuffer()), JPEG);
+
+    // A new photo gets a new version; the catalogue shows it.
+    await new Promise((r) => setTimeout(r, 5));
+    const second = (await (await upload(shop.user, rose.id, JPEG)).json()) as Product;
+    assert.notEqual(second.imagePath, updated.imagePath);
+    const listed = await shop.user.get<{ items: Product[] }>('/seller/products');
+    assert.equal(listed.items.find((p) => p.id === rose.id)?.imagePath, second.imagePath);
+    assert.equal((await fetch(`${base}/catalog/products/${randomUUID()}/image`)).status, 404);
+  });
+});
+

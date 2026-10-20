@@ -13,7 +13,8 @@
     "test:integration": "node ../../scripts/clean.mjs dist-test && tsc -p tsconfig.test.json && node --env-file-if-exists=../../.env --test --test-concurrency=1 --test-timeout=120000 \"dist-test/**/*.integration.js\"",
     "db:migrate": "pnpm run build && node --env-file-if-exists=../../.env dist/database/migrate.js up --dir ../../infra/database/migrations",
     "db:migrate:status": "pnpm run build && node --env-file-if-exists=../../.env dist/database/migrate.js status --dir ../../infra/database/migrations",
-    "bootstrap:platform-owner": "pnpm run build && node --env-file-if-exists=../../.env dist/cli/bootstrap-platform-owner.js"
+    "bootstrap:platform-owner": "pnpm run build && node --env-file-if-exists=../../.env dist/cli/bootstrap-platform-owner.js",
+    "db:seed:demo": "pnpm run build && node --env-file-if-exists=../../.env dist/cli/seed-demo.js"
   },
   "dependencies": {
     "@flower-man/contracts": "workspace:*",

@@ -7,7 +7,8 @@ import {
   type UpdateProductRequest,
   updateProductSchema,
 } from '@flower-man/contracts';
-import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import type { Request, Response } from 'express';
 
 import { type AuthenticatedContext, AuthGuard, CurrentAuth } from '../auth/auth.guard.js';
 import { UuidPipe } from '../common/uuid-param.pipe.js';
@@ -35,6 +36,16 @@ export class CatalogController {
     }
     const seller = sellerId === undefined ? undefined : new UuidPipe().transform(sellerId);
     return { items: await this.catalog.browse({ latitude, longitude, ...(category ? { category } : {}), ...(search ? { search } : {}), ...(seller ? { sellerId: seller } : {}) }) };
+  }
+
+  /** Immutable per URL: imagePath carries a version that changes with every new photo. */
+  @Get('products/:id/image')
+  async image(@Param('id', UuidPipe) id: string, @Res() response: Response): Promise<void> {
+    const { bytes, contentType } = await this.catalog.getImage(id);
+    response.setHeader('Content-Type', contentType);
+    response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    response.setHeader('Content-Security-Policy', "default-src 'none'");
+    response.send(bytes);
   }
 
   @Get('products/:id')
@@ -79,6 +90,17 @@ export class SellerProductsController {
     @Headers(SELLER_HEADER) sellerId?: string,
   ): Promise<Product> {
     return this.catalog.update(await this.partners.requireSeller(auth.userId, sellerId), id, body);
+  }
+
+  /** Raw image bytes as the body (JPEG, PNG or WebP, max 5 MB). */
+  @Put(':id/image')
+  async uploadImage(
+    @CurrentAuth() auth: AuthenticatedContext,
+    @Param('id', UuidPipe) id: string,
+    @Req() request: Request,
+    @Headers(SELLER_HEADER) sellerId?: string,
+  ): Promise<Product> {
+    return this.catalog.setImage(await this.partners.requireSeller(auth.userId, sellerId), id, request.body);
   }
 
   @Delete(':id')

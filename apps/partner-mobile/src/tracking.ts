@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as TaskManager from 'expo-task-manager';
 
 import { api } from './api';
+import { t } from './i18n';
 
 /**
  * Background GPS for ACTIVE deliveries only. The courier's position is never recorded when there is no
@@ -46,8 +47,8 @@ export async function startTracking(deliveryId: string): Promise<boolean> {
       pausesUpdatesAutomatically: false,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: 'Flower Man delivery in progress',
-        notificationBody: 'Your position is shared with the customer until the delivery is completed.',
+        notificationTitle: t('trackingTitle'),
+        notificationBody: t('trackingBody'),
         notificationColor: '#b5446e',
       },
     });

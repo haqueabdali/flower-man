@@ -92,8 +92,8 @@ export class DeliveryService {
     for (const courier of couriers.rows) {
       await this.notifications.notifyUser(courier.owner_user_id, {
         type: 'DELIVERY_OFFERED',
-        title: 'New delivery job',
-        body: `Order #${orderNumber} is ready for pickup.`,
+        title: { it: 'Nuova consegna disponibile', en: 'New delivery job' },
+        body: { it: `L'ordine #${orderNumber} è pronto per il ritiro.`, en: `Order #${orderNumber} is ready for pickup.` },
       });
     }
   }
@@ -138,8 +138,18 @@ export class DeliveryService {
       return transitionOrder(client, await lockOrder(client, orderId), 'COURIER_ASSIGNED', 'SYSTEM', null, `Courier ${courier.displayName}`);
     });
     await this.notifications.safely(async () => {
-      await this.notifications.notifyUser(order.customerId, { type: 'COURIER_ASSIGNED', title: 'Courier assigned', body: `${courier.displayName} will deliver order #${order.orderNumber}.`, data: { orderId: order.id } });
-      await this.notifications.notifyPartner(order.sellerId, { type: 'COURIER_ASSIGNED', title: 'Courier on the way', body: `${courier.displayName} is coming to pick up order #${order.orderNumber}.`, data: { orderId: order.id } });
+      await this.notifications.notifyUser(order.customerId, {
+        type: 'COURIER_ASSIGNED',
+        title: { it: 'Corriere assegnato', en: 'Courier assigned' },
+        body: { it: `${courier.displayName} consegnerà l'ordine #${order.orderNumber}.`, en: `${courier.displayName} will deliver order #${order.orderNumber}.` },
+        data: { orderId: order.id },
+      });
+      await this.notifications.notifyPartner(order.sellerId, {
+        type: 'COURIER_ASSIGNED',
+        title: { it: 'Corriere in arrivo', en: 'Courier on the way' },
+        body: { it: `${courier.displayName} sta arrivando a ritirare l'ordine #${order.orderNumber}.`, en: `${courier.displayName} is coming to pick up order #${order.orderNumber}.` },
+        data: { orderId: order.id },
+      });
     });
     return this.job(courier, deliveryId);
   }
@@ -166,7 +176,12 @@ export class DeliveryService {
   async startTransit(courier: ActingPartner, deliveryId: string): Promise<CourierJob> {
     const order = await this.advance(courier, deliveryId, 'IN_TRANSIT', 'IN_TRANSIT');
     await this.notifications.safely(() =>
-      this.notifications.notifyUser(order.customerId, { type: 'DELIVERY_IN_TRANSIT', title: 'On the way', body: `Order #${order.orderNumber} is on its way.`, data: { orderId: order.id } }),
+      this.notifications.notifyUser(order.customerId, {
+        type: 'DELIVERY_IN_TRANSIT',
+        title: { it: 'In consegna', en: 'On the way' },
+        body: { it: `L'ordine #${order.orderNumber} è in viaggio.`, en: `Order #${order.orderNumber} is on its way.` },
+        data: { orderId: order.id },
+      }),
     );
     return this.job(courier, deliveryId);
   }
@@ -225,7 +240,12 @@ export class DeliveryService {
     const row = order.rows[0];
     if (row) {
       await this.notifications.safely(() =>
-        this.notifications.notifyUser(row.customer_id, { type: 'COURIER_ARRIVING', title: 'Courier arriving', body: `Your courier has arrived with order #${row.order_number}.`, data: { orderId } }),
+        this.notifications.notifyUser(row.customer_id, {
+          type: 'COURIER_ARRIVING',
+          title: { it: 'Il corriere è arrivato', en: 'Courier arriving' },
+          body: { it: `Il corriere è arrivato con l'ordine #${row.order_number}.`, en: `Your courier has arrived with order #${row.order_number}.` },
+          data: { orderId },
+        }),
       );
     }
     return this.job(courier, deliveryId);
@@ -295,8 +315,18 @@ export class DeliveryService {
       return delivered;
     });
     await this.notifications.safely(async () => {
-      await this.notifications.notifyUser(order.customerId, { type: 'ORDER_DELIVERED', title: 'Delivered', body: `Order #${order.orderNumber} has been delivered. Thank you!`, data: { orderId: order.id } });
-      await this.notifications.notifyPartner(order.sellerId, { type: 'ORDER_DELIVERED', title: 'Delivered', body: `Order #${order.orderNumber} was delivered.`, data: { orderId: order.id } });
+      await this.notifications.notifyUser(order.customerId, {
+        type: 'ORDER_DELIVERED',
+        title: { it: 'Consegnato', en: 'Delivered' },
+        body: { it: `L'ordine #${order.orderNumber} è stato consegnato. Grazie!`, en: `Order #${order.orderNumber} has been delivered. Thank you!` },
+        data: { orderId: order.id },
+      });
+      await this.notifications.notifyPartner(order.sellerId, {
+        type: 'ORDER_DELIVERED',
+        title: { it: 'Consegnato', en: 'Delivered' },
+        body: { it: `L'ordine #${order.orderNumber} è stato consegnato.`, en: `Order #${order.orderNumber} was delivered.` },
+        data: { orderId: order.id },
+      });
     });
     return this.job(courier, deliveryId);
   }

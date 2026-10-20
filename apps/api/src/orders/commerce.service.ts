@@ -17,7 +17,7 @@ import { pointSql } from '../common/geo.js';
 import { PG_POOL } from '../database/database.module.js';
 import { withTransaction } from '../database/transaction.js';
 import { DeliveryService } from '../delivery/delivery.service.js';
-import { NotificationsService } from '../notifications/notifications.service.js';
+import { type Localized, NotificationsService } from '../notifications/notifications.service.js';
 import type { ActingPartner } from '../partners/partners.service.js';
 import { PaymentsService } from '../payments/payments.service.js';
 import { ZonesService } from '../zones/zones.service.js';
@@ -277,10 +277,19 @@ export class CommerceService {
       }
       return updated;
     });
-    const messages: Record<typeof to, { title: string; body: string }> = {
-      CONFIRMED: { title: 'Order confirmed', body: `${seller.displayName} accepted order #${order.orderNumber}.` },
-      PREPARING: { title: 'Being prepared', body: `Your flowers for order #${order.orderNumber} are being prepared.` },
-      READY_FOR_PICKUP: { title: 'Ready', body: `Order #${order.orderNumber} is ready and waiting for a courier.` },
+    const messages: Record<typeof to, { title: Localized; body: Localized }> = {
+      CONFIRMED: {
+        title: { it: 'Ordine confermato', en: 'Order confirmed' },
+        body: { it: `${seller.displayName} ha accettato l'ordine #${order.orderNumber}.`, en: `${seller.displayName} accepted order #${order.orderNumber}.` },
+      },
+      PREPARING: {
+        title: { it: 'In preparazione', en: 'Being prepared' },
+        body: { it: `I fiori dell'ordine #${order.orderNumber} sono in preparazione.`, en: `Your flowers for order #${order.orderNumber} are being prepared.` },
+      },
+      READY_FOR_PICKUP: {
+        title: { it: 'Pronto', en: 'Ready' },
+        body: { it: `L'ordine #${order.orderNumber} è pronto e attende un corriere.`, en: `Order #${order.orderNumber} is ready and waiting for a courier.` },
+      },
     };
     await this.notifications.safely(async () => {
       await this.notifications.notifyUser(order.customerId, { type: `ORDER_${to}`, ...messages[to], data: { orderId } });
@@ -325,12 +334,20 @@ export class CommerceService {
     await this.notifications.safely(async () => {
       await this.notifications.notifyUser(order.customerId, {
         type: 'ORDER_CANCELLED',
-        title: 'Order cancelled',
-        body: `Order #${order.orderNumber} was cancelled.${wasPaid ? ' You will be refunded in full.' : ''}`,
+        title: { it: 'Ordine annullato', en: 'Order cancelled' },
+        body: {
+          it: `L'ordine #${order.orderNumber} è stato annullato.${wasPaid ? ' Riceverai il rimborso completo.' : ''}`,
+          en: `Order #${order.orderNumber} was cancelled.${wasPaid ? ' You will be refunded in full.' : ''}`,
+        },
         data: { orderId },
       });
       if (actor !== 'SELLER' && wasPaid) {
-        await this.notifications.notifyPartner(order.sellerId, { type: 'ORDER_CANCELLED', title: 'Order cancelled', body: `Order #${order.orderNumber} was cancelled.`, data: { orderId } });
+        await this.notifications.notifyPartner(order.sellerId, {
+          type: 'ORDER_CANCELLED',
+          title: { it: 'Ordine annullato', en: 'Order cancelled' },
+          body: { it: `L'ordine #${order.orderNumber} è stato annullato.`, en: `Order #${order.orderNumber} was cancelled.` },
+          data: { orderId },
+        });
       }
     });
   }

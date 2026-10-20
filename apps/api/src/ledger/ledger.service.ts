@@ -212,8 +212,8 @@ export class LedgerService {
       await this.notifications.safely(() =>
         this.notifications.notifyPartner(partnerId, {
           type: 'SETTLEMENT_PAID',
-          title: 'Payout sent',
-          body: 'Your Flower Man earnings have been paid out.',
+          title: { it: 'Pagamento inviato', en: 'Payout sent' },
+          body: { it: 'I tuoi guadagni Flower Man sono stati pagati.', en: 'Your Flower Man earnings have been paid out.' },
           data: { settlementId },
         }),
       );

@@ -163,3 +163,8 @@ export function createApiClient(apiUrl: string, store: SessionStore): ApiClient 
 
 /** €12,50 for 1250 (Italian formatting). */
 export const formatPrice = (minor: number): string => `€${(minor / 100).toFixed(2).replace('.', ',')}`;
+
+/** Where to load a product photo from: the uploaded photo (served by the API) or an external https image. */
+export function productImageUri(client: Pick<ApiClient, 'baseUrl'>, product: { readonly imagePath: string | null; readonly imageUrl: string | null }): string | null {
+  return product.imagePath ? `${client.baseUrl}/${product.imagePath}` : product.imageUrl;
+}

@@ -3,6 +3,7 @@ import type { CheckoutResponse, CustomRequestView } from '@flower-man/contracts'
 import { useCallback, useEffect, useState } from 'react';
 
 import { api } from '../api';
+import { locale, offerStatusLabel, requestStatusLabel, t } from '../i18n';
 import { currentLocation } from '../location';
 import { useNavigation } from '../navigation';
 import { attempt, Body, Button, Card, Field, Loading, Muted, Pill, Screen, Strong } from '../ui';
@@ -14,13 +15,13 @@ export function RequestsScreen() {
     void attempt(async () => setRequests((await api.request<{ items: CustomRequestView[] }>('custom-requests')).items));
   }, []);
   return (
-    <Screen title="Custom bouquets" right={<Button kind="secondary" title="New" onPress={() => navigation.push({ name: 'newRequest' })} />}>
-      {!requests ? <Loading /> : requests.length === 0 && <Muted>Describe the bouquet you dream of and local florists will make you offers.</Muted>}
+    <Screen title={t('requestsTitle')} right={<Button kind="secondary" title={t('requestsNew')} onPress={() => navigation.push({ name: 'newRequest' })} />}>
+      {!requests ? <Loading /> : requests.length === 0 && <Muted>{t('requestsEmpty')}</Muted>}
       {requests?.map((request) => (
         <Card key={request.id} onPress={() => navigation.push({ name: 'request', requestId: request.id })}>
-          <Pill label={request.status} />
+          <Pill label={requestStatusLabel(request.status)} />
           <Strong>{request.occasion}</Strong>
-          <Muted>Budget {formatPrice(request.budgetMinor)} · {request.offers.length} offer(s)</Muted>
+          <Muted>{t('requestsSummary', { budget: formatPrice(request.budgetMinor), count: request.offers.length })}</Muted>
         </Card>
       ))}
     </Screen>
@@ -59,19 +60,19 @@ export function NewRequestScreen() {
     });
 
   return (
-    <Screen title="Custom bouquet" onBack={navigation.back}>
-      <Field label="Occasion" value={form.occasion} onChangeText={set('occasion')} placeholder="Birthday, anniversary…" />
-      <Field label="Flowers you like" value={form.flowerPreferences} onChangeText={set('flowerPreferences')} />
-      <Field label="Colours" value={form.colourPreferences} onChangeText={set('colourPreferences')} />
-      <Field label="Message / notes" value={form.notes} onChangeText={set('notes')} multiline />
-      <Field label="Budget (€)" value={form.budget} onChangeText={set('budget')} keyboardType="decimal-pad" />
-      <Field label="Delivery date (YYYY-MM-DD)" value={form.date} onChangeText={set('date')} />
-      <Field label="From hour" value={form.fromHour} onChangeText={set('fromHour')} keyboardType="number-pad" />
-      <Field label="To hour" value={form.toHour} onChangeText={set('toHour')} keyboardType="number-pad" />
-      <Field label="Recipient name" value={form.recipientName} onChangeText={set('recipientName')} />
-      <Field label="Recipient phone" value={form.recipientPhone} onChangeText={set('recipientPhone')} keyboardType="phone-pad" />
-      <Field label="Delivery address" value={form.deliveryAddress} onChangeText={set('deliveryAddress')} />
-      <Button title="Ask florists for offers" onPress={submit} />
+    <Screen title={t('newRequestTitle')} onBack={navigation.back}>
+      <Field label={t('newRequestOccasion')} value={form.occasion} onChangeText={set('occasion')} placeholder={t('newRequestOccasionPlaceholder')} />
+      <Field label={t('newRequestFlowers')} value={form.flowerPreferences} onChangeText={set('flowerPreferences')} />
+      <Field label={t('newRequestColours')} value={form.colourPreferences} onChangeText={set('colourPreferences')} />
+      <Field label={t('newRequestNotes')} value={form.notes} onChangeText={set('notes')} multiline />
+      <Field label={t('newRequestBudget')} value={form.budget} onChangeText={set('budget')} keyboardType="decimal-pad" />
+      <Field label={t('newRequestDate')} value={form.date} onChangeText={set('date')} />
+      <Field label={t('newRequestFrom')} value={form.fromHour} onChangeText={set('fromHour')} keyboardType="number-pad" />
+      <Field label={t('newRequestTo')} value={form.toHour} onChangeText={set('toHour')} keyboardType="number-pad" />
+      <Field label={t('checkoutRecipientName')} value={form.recipientName} onChangeText={set('recipientName')} />
+      <Field label={t('checkoutRecipientPhone')} value={form.recipientPhone} onChangeText={set('recipientPhone')} keyboardType="phone-pad" />
+      <Field label={t('checkoutAddress')} value={form.deliveryAddress} onChangeText={set('deliveryAddress')} />
+      <Button title={t('newRequestSubmit')} onPress={submit} />
     </Screen>
   );
 }
@@ -86,20 +87,20 @@ export function RequestScreen({ requestId }: { requestId: string }) {
     return () => clearInterval(timer);
   }, [load]);
 
-  if (!request) return <Screen title="Request" onBack={navigation.back}><Loading /></Screen>;
+  if (!request) return <Screen title={t('requestTitle')} onBack={navigation.back}><Loading /></Screen>;
   return (
     <Screen title={request.occasion} onBack={navigation.back}>
-      <Pill label={request.status} />
-      <Muted>Budget {formatPrice(request.budgetMinor)} · {new Date(request.deliveryWindowStart).toLocaleString('it-IT')}</Muted>
-      {request.offers.length === 0 && request.status === 'OPEN' && <Muted>Waiting for offers from florists near you…</Muted>}
+      <Pill label={requestStatusLabel(request.status)} />
+      <Muted>{t('requestBudget', { budget: formatPrice(request.budgetMinor), date: new Date(request.deliveryWindowStart).toLocaleString(locale) })}</Muted>
+      {request.offers.length === 0 && request.status === 'OPEN' && <Muted>{t('requestWaiting')}</Muted>}
       {request.offers.map((offer) => (
         <Card key={offer.id}>
           <Strong>{offer.sellerName} · {formatPrice(offer.priceMinor)}</Strong>
           <Body>{offer.description}</Body>
-          <Muted>Ready in about {Math.round(offer.preparationMinutes / 60)} h{offer.notes ? ` · ${offer.notes}` : ''}</Muted>
+          <Muted>{t('requestReadyIn', { hours: Math.round(offer.preparationMinutes / 60) })}{offer.notes ? ` · ${offer.notes}` : ''}</Muted>
           {request.status === 'OPEN' && (
             <Button
-              title="Choose this offer"
+              title={t('requestChoose')}
               onPress={() =>
                 attempt(async () => {
                   const checkout = await api.request<CheckoutResponse>(`custom-requests/${request.id}/offers/${offer.id}/select`, { method: 'POST' });
@@ -108,10 +109,10 @@ export function RequestScreen({ requestId }: { requestId: string }) {
               }
             />
           )}
-          {offer.status !== 'SUBMITTED' && <Pill label={offer.status} />}
+          {offer.status !== 'SUBMITTED' && <Pill label={offerStatusLabel(offer.status)} />}
         </Card>
       ))}
-      {request.status === 'OPEN' && <Button kind="danger" title="Cancel request" onPress={() => attempt(async () => setRequest(await api.request<CustomRequestView>(`custom-requests/${request.id}/cancel`, { method: 'POST' })))} />}
+      {request.status === 'OPEN' && <Button kind="danger" title={t('requestCancel')} onPress={() => attempt(async () => setRequest(await api.request<CustomRequestView>(`custom-requests/${request.id}/cancel`, { method: 'POST' })))} />}
     </Screen>
   );
 }

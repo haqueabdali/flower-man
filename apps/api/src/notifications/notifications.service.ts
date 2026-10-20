@@ -6,11 +6,23 @@ import type { AppConfig } from '../config/app-config.js';
 import { APP_CONFIG } from '../config/config.module.js';
 import { PG_POOL } from '../database/database.module.js';
 
+/** Text in every supported language; each recipient gets theirs (users.language). */
+export interface Localized {
+  readonly it: string;
+  readonly en: string;
+}
+
 export interface NotificationMessage {
   readonly type: string;
-  readonly title: string;
-  readonly body: string;
+  readonly title: Localized;
+  readonly body: Localized;
   readonly data?: Record<string, string>;
+}
+
+/** "€29.90" / "29,90 €" */
+export function euros(minor: number): Localized {
+  const amount = (minor / 100).toFixed(2);
+  return { it: `${amount.replace('.', ',')} €`, en: `€${amount}` };
 }
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
@@ -29,14 +41,17 @@ export class NotificationsService {
   ) {}
 
   async notifyUser(userId: string, message: NotificationMessage): Promise<void> {
-    const inserted = await this.pool.query<{ id: string }>(
+    // The text is rendered once, in the recipient's language, and stored like that in the inbox.
+    const inserted = await this.pool.query<{ id: string; title: string; body: string }>(
       `INSERT INTO notifications (user_id, type, title, body, data, push_status)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [userId, message.type, message.title, message.body, JSON.stringify(message.data ?? {}), this.config.push.enabled ? 'PENDING' : 'DISABLED'],
+       SELECT u.id, $2, CASE u.language WHEN 'en' THEN $4 ELSE $3 END, CASE u.language WHEN 'en' THEN $6 ELSE $5 END, $7, $8
+         FROM users u WHERE u.id = $1
+       RETURNING id, title, body`,
+      [userId, message.type, message.title.it, message.title.en, message.body.it, message.body.en, JSON.stringify(message.data ?? {}), this.config.push.enabled ? 'PENDING' : 'DISABLED'],
     );
-    const id = inserted.rows[0]?.id;
-    if (id && this.config.push.enabled) {
-      void this.push(id, userId, message);
+    const row = inserted.rows[0];
+    if (row && this.config.push.enabled) {
+      void this.push(row.id, userId, { type: message.type, title: row.title, body: row.body, data: message.data ?? {} });
     }
   }
 
@@ -91,7 +106,7 @@ export class NotificationsService {
     await this.pool.query('UPDATE notifications SET read_at = COALESCE(read_at, now()) WHERE id = $1 AND user_id = $2', [notificationId, userId]);
   }
 
-  private async push(notificationId: string, userId: string, message: NotificationMessage): Promise<void> {
+  private async push(notificationId: string, userId: string, message: { type: string; title: string; body: string; data: Record<string, string> }): Promise<void> {
     try {
       const tokens = await this.pool.query<{ token: string }>('SELECT token FROM push_tokens WHERE user_id = $1', [userId]);
       if (tokens.rows.length === 0) {

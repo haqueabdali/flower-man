@@ -3,13 +3,15 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { t } from './i18n';
+
 export const colors = { brand: '#b5446e', ink: '#1f2328', muted: '#6b7280', line: '#e7e2dc', bg: '#faf8f5', ok: '#1a7f37', bad: '#cf222e' };
 
 export function Screen({ title, onBack, children, scroll = true, right }: { title: string; onBack?: () => void; children: ReactNode; scroll?: boolean; right?: ReactNode }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        {onBack ? <Pressable onPress={onBack} hitSlop={12}><Text style={styles.back}>‹ Back</Text></Pressable> : <View style={{ width: 48 }} />}
+        {onBack ? <Pressable onPress={onBack} hitSlop={12}><Text style={styles.back}>{t('back')}</Text></Pressable> : <View style={{ width: 48 }} />}
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
         <View style={{ minWidth: 48, alignItems: 'flex-end' }}>{right}</View>
       </View>
@@ -62,7 +64,7 @@ export async function attempt(action: () => Promise<void>): Promise<void> {
   try {
     await action();
   } catch (error) {
-    Alert.alert('Flower Man', error instanceof ApiError || error instanceof Error ? error.message : 'Something went wrong.');
+    Alert.alert(t('appName'), error instanceof ApiError || error instanceof Error ? error.message : t('genericError'));
   }
 }
 

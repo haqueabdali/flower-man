@@ -1,9 +1,11 @@
-import { formatPrice } from '@flower-man/api-client';
+import { formatPrice, productImageUri } from '@flower-man/api-client';
 import { type CustomOffer, type CustomRequestView, type OrderDetail, type OrderSummary, PRODUCT_CATEGORIES, type Product } from '@flower-man/contracts';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Switch, View } from 'react-native';
+import { Alert, Image, Switch, View } from 'react-native';
 
 import { api } from '../api';
+import { CATEGORY_LABELS, DELIVERY_STATUS_LABELS, locale, ORDER_STATUS_LABELS, t } from '../i18n';
 import { useNavigation } from '../navigation';
 import { attempt, Body, Button, Card, Field, Loading, Muted, Pill, Screen, Strong } from '../ui';
 
@@ -20,15 +22,15 @@ export function SellerOrdersScreen() {
     return () => clearInterval(timer);
   }, [load]);
   return (
-    <Screen title="Orders" onBack={navigation.back}>
+    <Screen title={t('ordersTitle')} onBack={navigation.back}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-        {FILTERS.map((value) => <Button key={value} kind={status === value ? 'primary' : 'secondary'} title={value === 'PAID' ? 'New' : value.replaceAll('_', ' ').toLowerCase()} onPress={() => setStatus(value)} />)}
+        {FILTERS.map((value) => <Button key={value} kind={status === value ? 'primary' : 'secondary'} title={value === 'PAID' ? t('ordersFilterNew') : ORDER_STATUS_LABELS[value]} onPress={() => setStatus(value)} />)}
       </View>
-      {!orders ? <Loading /> : orders.length === 0 && <Muted>No orders here.</Muted>}
+      {!orders ? <Loading /> : orders.length === 0 && <Muted>{t('ordersEmpty')}</Muted>}
       {orders?.map((order) => (
         <Card key={order.id} onPress={() => navigation.push({ name: 'sellerOrder', orderId: order.id })}>
           <Strong>#{order.orderNumber} · {formatPrice(order.subtotalMinor)}</Strong>
-          <Muted>{order.recipientName} · {order.requestedDeliveryAt ? new Date(order.requestedDeliveryAt).toLocaleString('it-IT') : 'as soon as possible'}</Muted>
+          <Muted>{order.recipientName} · {order.requestedDeliveryAt ? new Date(order.requestedDeliveryAt).toLocaleString(locale) : t('ordersAsap')}</Muted>
         </Card>
       ))}
     </Screen>
@@ -41,28 +43,28 @@ export function SellerOrderScreen({ orderId }: { orderId: string }) {
   useEffect(() => {
     void attempt(async () => setOrder(await api.request<OrderDetail>(`seller/orders/${orderId}`)));
   }, [orderId]);
-  if (!order) return <Screen title="Order" onBack={navigation.back}><Loading /></Screen>;
+  if (!order) return <Screen title={t('orderFallbackTitle')} onBack={navigation.back}><Loading /></Screen>;
   const step = (action: 'accept' | 'prepare' | 'ready') => attempt(async () => setOrder(await api.request<OrderDetail>(`seller/orders/${order.id}/${action}`, { method: 'POST' })));
   const reject = () =>
-    Alert.alert('Reject order', 'The customer will be refunded in full.', [
-      { text: 'Back', style: 'cancel' },
-      { text: 'Reject', style: 'destructive', onPress: () => void attempt(async () => setOrder(await api.request<OrderDetail>(`seller/orders/${order.id}/reject`, { method: 'POST', body: { reason: 'Rejected by the florist' } }))) },
+    Alert.alert(t('orderRejectTitle'), t('orderRejectBody'), [
+      { text: t('orderRejectCancel'), style: 'cancel' },
+      { text: t('orderReject'), style: 'destructive', onPress: () => void attempt(async () => setOrder(await api.request<OrderDetail>(`seller/orders/${order.id}/reject`, { method: 'POST', body: { reason: t('orderRejectReason') } }))) },
     ]);
   return (
-    <Screen title={`Order #${order.orderNumber}`} onBack={navigation.back}>
-      <Pill label={order.status} />
+    <Screen title={t('orderTitle', { number: order.orderNumber })} onBack={navigation.back}>
+      <Pill label={ORDER_STATUS_LABELS[order.status]} />
       <Card>
         {order.items.map((item) => <Body key={item.name}>{item.quantity} × {item.name}</Body>)}
         <Strong>{formatPrice(order.subtotalMinor)}</Strong>
-        {order.giftMessage && <Body>Card message: “{order.giftMessage}”</Body>}
-        {order.deliveryNotes && <Muted>Notes: {order.deliveryNotes}</Muted>}
+        {order.giftMessage && <Body>{t('orderCardMessage', { message: order.giftMessage })}</Body>}
+        {order.deliveryNotes && <Muted>{t('orderNotes', { notes: order.deliveryNotes })}</Muted>}
       </Card>
-      <Muted>For {order.recipientName}, {order.deliveryAddress}</Muted>
-      {order.status === 'PAID' && <Button title="Accept order" onPress={() => step('accept')} />}
-      {order.status === 'CONFIRMED' && <Button title="Start preparing" onPress={() => step('prepare')} />}
-      {order.status === 'PREPARING' && <Button title="Ready for pickup" onPress={() => step('ready')} />}
-      {(order.status === 'PAID' || order.status === 'CONFIRMED') && <Button kind="danger" title="Reject" onPress={reject} />}
-      {order.delivery && <Muted>Courier: {order.delivery.courierName ?? 'being assigned'} · {order.delivery.status}</Muted>}
+      <Muted>{t('orderFor', { name: order.recipientName, address: order.deliveryAddress })}</Muted>
+      {order.status === 'PAID' && <Button title={t('orderAccept')} onPress={() => step('accept')} />}
+      {order.status === 'CONFIRMED' && <Button title={t('orderPrepare')} onPress={() => step('prepare')} />}
+      {order.status === 'PREPARING' && <Button title={t('orderReady')} onPress={() => step('ready')} />}
+      {(order.status === 'PAID' || order.status === 'CONFIRMED') && <Button kind="danger" title={t('orderReject')} onPress={reject} />}
+      {order.delivery && <Muted>{t('orderCourier', { name: order.delivery.courierName ?? t('orderCourierPending'), status: DELIVERY_STATUS_LABELS[order.delivery.status] })}</Muted>}
     </Screen>
   );
 }
@@ -74,12 +76,13 @@ export function ProductsScreen() {
     void attempt(async () => setProducts((await api.request<{ items: Product[] }>('seller/products')).items));
   }, []);
   return (
-    <Screen title="Products" onBack={navigation.back} right={<Button kind="secondary" title="Add" onPress={() => navigation.push({ name: 'productEdit', product: null })} />}>
-      {!products ? <Loading /> : products.length === 0 && <Muted>Add your first bouquet.</Muted>}
+    <Screen title={t('productsTitle')} onBack={navigation.back} right={<Button kind="secondary" title={t('productsAdd')} onPress={() => navigation.push({ name: 'productEdit', product: null })} />}>
+      {!products ? <Loading /> : products.length === 0 && <Muted>{t('productsEmpty')}</Muted>}
       {products?.map((product) => (
         <Card key={product.id} onPress={() => navigation.push({ name: 'productEdit', product })}>
+          {productImageUri(api, product) && <Image source={{ uri: productImageUri(api, product) as string }} style={{ height: 120, borderRadius: 8 }} resizeMode="cover" />}
           <Strong>{product.name} · {formatPrice(product.priceMinor)}</Strong>
-          <Muted>{product.available ? 'Available' : 'Hidden'} · {product.stock === null ? 'made to order' : `${product.stock} in stock`}</Muted>
+          <Muted>{CATEGORY_LABELS[product.category]} · {product.available ? t('productAvailable') : t('productHidden')} · {product.stock === null ? t('productMadeToOrder') : t('productInStock', { count: product.stock })}</Muted>
         </Card>
       ))}
     </Screen>
@@ -105,27 +108,72 @@ export function ProductEditScreen({ product }: { product: Product | null }) {
         available,
         stock: stock.trim() === '' ? null : Number(stock),
       };
-      if (product) await api.request(`seller/products/${product.id}`, { method: 'PATCH', body });
-      else await api.request('seller/products', { method: 'POST', body });
-      navigation.reset({ name: 'products' });
+      if (product) {
+        await api.request(`seller/products/${product.id}`, { method: 'PATCH', body });
+        navigation.reset({ name: 'products' });
+      } else {
+        // New products open again in edit mode, where the photo can be added.
+        const created = await api.request<Product>('seller/products', { method: 'POST', body });
+        navigation.reset({ name: 'products' });
+        navigation.push({ name: 'productEdit', product: created });
+      }
     });
 
   return (
-    <Screen title={product ? 'Edit product' : 'New product'} onBack={navigation.back}>
-      <Field label="Name" value={name} onChangeText={setName} />
-      <Field label="Description" value={description} onChangeText={setDescription} multiline />
+    <Screen title={product ? t('productEditTitle') : t('productNewTitle')} onBack={navigation.back}>
+      <Field label={t('productName')} value={name} onChangeText={setName} />
+      <Field label={t('productDescription')} value={description} onChangeText={setDescription} multiline />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-        {PRODUCT_CATEGORIES.map((value) => <Button key={value} kind={category === value ? 'primary' : 'secondary'} title={value.toLowerCase()} onPress={() => setCategory(value)} />)}
+        {PRODUCT_CATEGORIES.map((value) => <Button key={value} kind={category === value ? 'primary' : 'secondary'} title={CATEGORY_LABELS[value]} onPress={() => setCategory(value)} />)}
       </View>
-      <Field label="Price (€)" value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
-      <Field label="Stock (empty = made to order)" value={stock} onChangeText={setStock} keyboardType="number-pad" />
+      <Field label={t('priceEuro')} value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
+      <Field label={t('productStock')} value={stock} onChangeText={setStock} keyboardType="number-pad" />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Body>Visible to customers</Body>
+        <Body>{t('productVisible')}</Body>
         <Switch value={available} onValueChange={setAvailable} />
       </View>
-      <Button title="Save" onPress={save} />
-      {product && <Button kind="danger" title="Archive" onPress={() => attempt(async () => { await api.request(`seller/products/${product.id}`, { method: 'DELETE' }); navigation.reset({ name: 'products' }); })} />}
+      {product && <ProductPhotoEditor product={product} />}
+      <Button title={t('save')} onPress={save} />
+      {product && <Button kind="danger" title={t('productArchive')} onPress={() => attempt(async () => { await api.request(`seller/products/${product.id}`, { method: 'DELETE' }); navigation.reset({ name: 'products' }); })} />}
     </Screen>
+  );
+}
+
+/** Photo from the camera or the gallery, cropped square and compressed before upload (max 5 MB on the API). */
+function ProductPhotoEditor({ product }: { product: Product }) {
+  const [current, setCurrent] = useState(product);
+  const [busy, setBusy] = useState(false);
+  const uri = productImageUri(api, current);
+
+  const pick = (source: 'camera' | 'gallery') =>
+    attempt(async () => {
+      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, exif: false };
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) throw new Error(t('photoCameraNeeded'));
+      }
+      const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+      const asset = result.canceled ? undefined : result.assets[0];
+      if (!asset) return;
+      setBusy(true);
+      try {
+        const blob = await (await fetch(asset.uri)).blob();
+        setCurrent(await api.request<Product>(`seller/products/${product.id}/image`, { method: 'PUT', binary: { data: blob, contentType: asset.mimeType ?? 'image/jpeg' } }));
+      } finally {
+        setBusy(false);
+      }
+    });
+
+  return (
+    <Card>
+      <Strong>{t('photoTitle')}</Strong>
+      {uri ? <Image source={{ uri }} style={{ height: 200, borderRadius: 8 }} resizeMode="cover" /> : <Muted>{t('photoHint')}</Muted>}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Button kind="secondary" title={t('photoTake')} disabled={busy} onPress={() => pick('camera')} />
+        <Button kind="secondary" title={t('photoGallery')} disabled={busy} onPress={() => pick('gallery')} />
+      </View>
+      {busy && <Muted>{t('photoUploading')}</Muted>}
+    </Card>
   );
 }
 
@@ -138,14 +186,14 @@ export function RequestFeedScreen() {
     void attempt(async () => setItems((await api.request<{ items: FeedItem[] }>('seller/custom-requests')).items));
   }, []);
   return (
-    <Screen title="Custom requests" onBack={navigation.back}>
-      {!items ? <Loading /> : items.length === 0 && <Muted>No open requests in your area right now.</Muted>}
+    <Screen title={t('requestsTitle')} onBack={navigation.back}>
+      {!items ? <Loading /> : items.length === 0 && <Muted>{t('requestsEmpty')}</Muted>}
       {items?.map((request) => (
         <Card key={request.id} onPress={() => navigation.push({ name: 'offer', request })}>
-          <Strong>{request.occasion} · budget {formatPrice(request.budgetMinor)}</Strong>
+          <Strong>{t('requestsBudget', { occasion: request.occasion, price: formatPrice(request.budgetMinor) })}</Strong>
           <Muted>{[request.flowerPreferences, request.colourPreferences].filter(Boolean).join(' · ')}</Muted>
-          <Muted>{new Date(request.deliveryWindowStart).toLocaleString('it-IT')}</Muted>
-          {request.myOffer && <Pill label={`My offer ${formatPrice(request.myOffer.priceMinor)}`} />}
+          <Muted>{new Date(request.deliveryWindowStart).toLocaleString(locale)}</Muted>
+          {request.myOffer && <Pill label={t('requestsMyOffer', { price: formatPrice(request.myOffer.priceMinor) })} />}
         </Card>
       ))}
     </Screen>
@@ -161,18 +209,18 @@ export function OfferScreen({ request }: { request: FeedItem }) {
   return (
     <Screen title={request.occasion} onBack={navigation.back}>
       <Card>
-        <Body>Budget {formatPrice(request.budgetMinor)}</Body>
-        {request.flowerPreferences && <Body>Flowers: {request.flowerPreferences}</Body>}
-        {request.colourPreferences && <Body>Colours: {request.colourPreferences}</Body>}
-        {request.notes && <Body>Notes: {request.notes}</Body>}
-        <Muted>Deliver between {new Date(request.deliveryWindowStart).toLocaleString('it-IT')} and {new Date(request.deliveryWindowEnd).toLocaleTimeString('it-IT')}</Muted>
+        <Body>{t('offerBudget', { price: formatPrice(request.budgetMinor) })}</Body>
+        {request.flowerPreferences && <Body>{t('offerFlowers', { value: request.flowerPreferences })}</Body>}
+        {request.colourPreferences && <Body>{t('offerColours', { value: request.colourPreferences })}</Body>}
+        {request.notes && <Body>{t('offerNotes', { value: request.notes })}</Body>}
+        <Muted>{t('offerWindow', { start: new Date(request.deliveryWindowStart).toLocaleString(locale), end: new Date(request.deliveryWindowEnd).toLocaleTimeString(locale) })}</Muted>
       </Card>
-      <Field label="Your proposal" value={description} onChangeText={setDescription} multiline />
-      <Field label="Price (€)" value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
-      <Field label="Preparation time (hours)" value={hours} onChangeText={setHours} keyboardType="decimal-pad" />
-      <Field label="Notes (optional)" value={notes} onChangeText={setNotes} />
+      <Field label={t('offerProposal')} value={description} onChangeText={setDescription} multiline />
+      <Field label={t('priceEuro')} value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
+      <Field label={t('offerPreparation')} value={hours} onChangeText={setHours} keyboardType="decimal-pad" />
+      <Field label={t('notesOptional')} value={notes} onChangeText={setNotes} />
       <Button
-        title={request.myOffer ? 'Update offer' : 'Send offer'}
+        title={request.myOffer ? t('offerUpdate') : t('offerSend')}
         onPress={() =>
           attempt(async () => {
             await api.request(`seller/custom-requests/${request.id}/offer`, {
@@ -189,7 +237,7 @@ export function OfferScreen({ request }: { request: FeedItem }) {
           })
         }
       />
-      {request.myOffer?.status === 'SUBMITTED' && <Button kind="danger" title="Withdraw offer" onPress={() => attempt(async () => { await api.request(`seller/custom-requests/${request.id}/offer/withdraw`, { method: 'POST' }); navigation.reset({ name: 'requestFeed' }); })} />}
+      {request.myOffer?.status === 'SUBMITTED' && <Button kind="danger" title={t('offerWithdraw')} onPress={() => attempt(async () => { await api.request(`seller/custom-requests/${request.id}/offer/withdraw`, { method: 'POST' }); navigation.reset({ name: 'requestFeed' }); })} />}
     </Screen>
   );
 }

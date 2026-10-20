@@ -1,6 +1,6 @@
 # Flower Man runbook
 
-Local setup, mobile builds, deployment, migrations and rollback.
+Local setup, mobile builds, deployment, migrations and rollback. Phone install and test script: [device-test.md](device-test.md).
 
 ## 1. Local development (Windows, Git Bash)
 
@@ -15,17 +15,21 @@ pnpm dev:api                    # http://127.0.0.1:4000/api/v1
 pnpm dev:admin                  # http://localhost:3000 (sign in as the platform owner)
 ```
 
-Mobile apps on a phone (same Wi-Fi):
-1. In `.env`, set `HOST=0.0.0.0` and restart `pnpm dev:api`.
-2. Find the PC's LAN address with `ipconfig`, for example 192.168.1.10.
-3. Start the apps, pointing them at the API:
-   ```bash
-   EXPO_PUBLIC_API_URL=http://192.168.1.10:4000 pnpm dev:customer
-   EXPO_PUBLIC_API_URL=http://192.168.1.10:4000 pnpm dev:partner
-   ```
-4. Scan the QR code with Expo Go.
+Demo data (local only, safe to repeat): `pnpm db:seed:demo` creates an approved shop with 5 products, a freelance seller
+with 2, an online courier and a customer in Bergamo. Every demo account uses the password `flowerman-demo-2026`:
+`demo.shop@`, `demo.freelancer@`, `demo.courier@`, `demo.customer@flowerman.localhost`. It refuses `NODE_ENV=production`.
 
-Expo Go has no background location and no remote push. Use a development build (section 2) to test those.
+Phone testing (development builds installed, phone on the same Wi-Fi):
+
+```bash
+pnpm dev:phone                     # API on your Wi-Fi + admin + both app servers, in one window
+LAN_IP=192.168.1.23 pnpm dev:phone # if it picks the wrong address (check with ipconfig)
+```
+
+It prints the URLs to enter in each app (customer `:8081`, partner `:8082`) and checks that the API is reachable on the
+network. Ctrl+C stops everything. `.env` is not changed: only this run listens on `0.0.0.0`.
+
+Expo Go (`pnpm dev:customer` / `pnpm dev:partner`) has no background location and no remote push; prefer development builds.
 
 Test payments in development: `PAYMENT_PROVIDER=simulated`. The payment screen shows a test button, but only in development builds.
 
@@ -49,17 +53,8 @@ npx eas-cli project:info                                   # must show @flower-m
 npx eas-cli build --profile development --platform android # accept "Generate a new Android Keystore?"
 ```
 
-Install the APK on the phone from the link or QR code EAS prints. Then run the JavaScript from your PC
-(phone and PC on the same Wi-Fi, API started with `HOST=0.0.0.0`):
-
-```bash
-cd /e/flower-man
-pnpm build:core
-cd apps/customer-mobile
-EXPO_PUBLIC_API_URL=http://<your-PC-LAN-IP>:4000 pnpm start   # open the app on the phone; it finds this server
-```
-
-Same steps in `apps/partner-mobile`.
+Same steps in `apps/partner-mobile`. Install each APK on the phone from the link or QR code EAS prints, then run
+`pnpm dev:phone` (section 1).
 
 Push credentials:
 - Android: upload the FCM v1 service-account key with `npx eas-cli credentials`.

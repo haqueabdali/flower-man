@@ -13,12 +13,14 @@ import {
   type OrderSummary,
   type PaymentInstructions,
 } from '@flower-man/contracts';
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Put, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 
 import { type AuthenticatedContext, AuthGuard, CurrentAuth, RequireCapabilities } from '../auth/auth.guard.js';
 import { UuidPipe } from '../common/uuid-param.pipe.js';
 import { ZodBodyPipe } from '../common/zod-body.pipe.js';
 import { CustomRequestsService } from '../custom-requests/custom-requests.service.js';
+import { DeliveryService } from '../delivery/delivery.service.js';
 import { CommerceService } from './commerce.service.js';
 
 /** Customer-facing commerce. Every route acts only on the signed-in customer's own data. */
@@ -29,6 +31,7 @@ export class CustomerController {
   constructor(
     private readonly commerce: CommerceService,
     private readonly customRequests: CustomRequestsService,
+    private readonly delivery: DeliveryService,
   ) {}
 
   @Get('cart')
@@ -65,6 +68,20 @@ export class CustomerController {
   @Get('orders/:id')
   async order(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string): Promise<OrderDetail> {
     return this.commerce.customerOrder(auth.userId, id);
+  }
+
+  /** The courier's proof photo, for the customer of that order, once it is delivered. */
+  @Get('orders/:id/delivery-proof')
+  async deliveryProof(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string, @Res() response: Response): Promise<void> {
+    const order = await this.commerce.customerOrder(auth.userId, id);
+    if (!order.delivery || order.delivery.status !== 'DELIVERED') {
+      throw new NotFoundException('No delivery photo for this order yet.');
+    }
+    const { bytes, contentType } = await this.delivery.proofImage(order.delivery.id);
+    response.setHeader('Content-Type', contentType);
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('Content-Security-Policy', "default-src 'none'");
+    response.send(bytes);
   }
 
   @Post('orders/:id/pay')

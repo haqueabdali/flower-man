@@ -1,10 +1,13 @@
+import { randomUUID } from 'node:crypto';
+
 import type { NearbySeller, Product, ProductRequest, UpdateProductRequest } from '@flower-man/contracts';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import pg from 'pg';
 
 import { pointSql } from '../common/geo.js';
 import { PG_POOL } from '../database/database.module.js';
 import type { ActingPartner } from '../partners/partners.service.js';
+import { detectImageType, OBJECT_STORAGE, type ObjectStorage } from '../storage/object-storage.js';
 import { ZonesService } from '../zones/zones.service.js';
 
 interface ProductRow {
@@ -19,11 +22,14 @@ interface ProductRow {
   available: boolean;
   stock: number | null;
   image_url: string | null;
+  image_updated_at: Date | null;
   distance_m?: number | null;
 }
 
 const PRODUCT_COLUMNS = `pr.id, pr.seller_id, p.display_name AS seller_name, p.kind AS seller_kind, pr.name, pr.description,
-  pr.category, pr.price_minor, pr.available, pr.stock, pr.image_url`;
+  pr.category, pr.price_minor, pr.available, pr.stock, pr.image_url, pr.image_updated_at`;
+
+export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const toProduct = (row: ProductRow): Product => ({
   id: row.id,
@@ -38,6 +44,7 @@ const toProduct = (row: ProductRow): Product => ({
   available: row.available,
   stock: row.stock,
   imageUrl: row.image_url,
+  imagePath: row.image_updated_at ? `catalog/products/${row.id}/image?v=${row.image_updated_at.getTime()}` : null,
   ...(row.distance_m === undefined || row.distance_m === null ? {} : { distanceMeters: Math.round(row.distance_m) }),
 });
 
@@ -54,7 +61,47 @@ export class CatalogService {
   constructor(
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     private readonly zones: ZonesService,
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
   ) {}
+
+  /** Replaces the product photo. The type is decided by the bytes, never by the Content-Type header. */
+  async setImage(seller: ActingPartner, productId: string, bytes: unknown): Promise<Product> {
+    if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
+      throw new BadRequestException('Send the photo as the request body (Content-Type image/jpeg, image/png or image/webp).');
+    }
+    if (bytes.length > MAX_PRODUCT_IMAGE_BYTES) {
+      throw new BadRequestException('Photo too large (max 5 MB).');
+    }
+    const type = detectImageType(bytes);
+    if (!type) {
+      throw new BadRequestException('The photo must be a JPEG, PNG or WebP image.');
+    }
+    const owned = await this.pool.query('SELECT 1 FROM products WHERE id = $1 AND seller_id = $2 AND archived_at IS NULL', [productId, seller.partnerId]);
+    if (owned.rowCount !== 1) {
+      throw new NotFoundException('Product not found.');
+    }
+    const key = `product-images/${productId}/${randomUUID()}.${type.split('/')[1] as string}`;
+    await this.storage.put(key, bytes, type);
+    await this.pool.query(
+      `UPDATE products SET image_key = $3, image_content_type = $4, image_updated_at = now(), updated_at = now()
+        WHERE id = $1 AND seller_id = $2 AND archived_at IS NULL`,
+      [productId, seller.partnerId, key, type],
+    );
+    return this.getById(productId);
+  }
+
+  /** The photo of a listed product (public, like the rest of the catalogue). */
+  async getImage(productId: string): Promise<{ bytes: Buffer; contentType: string }> {
+    const result = await this.pool.query<{ image_key: string; image_content_type: string }>(
+      'SELECT image_key, image_content_type FROM products WHERE id = $1 AND archived_at IS NULL AND image_key IS NOT NULL',
+      [productId],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      throw new NotFoundException('Photo not found.');
+    }
+    return { bytes: await this.storage.get(row.image_key), contentType: row.image_content_type };
+  }
 
   // ---------------------------------------------------------------- seller side
   async listForSeller(seller: ActingPartner): Promise<Product[]> {
