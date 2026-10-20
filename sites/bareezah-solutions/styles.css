@@ -231,7 +231,7 @@ img, svg { max-width: 100%; }
   transition: background-color .15s, border-color .15s, color .15s;
 }
 .chip:hover { border-color: var(--green); }
-.chip[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .chip-count { font: 500 .78rem var(--f-mono); opacity: .7; font-variant-numeric: tabular-nums; }
 
 .svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: var(--s-4); }
@@ -422,3 +422,22 @@ img, svg { max-width: 100%; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Form states */
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.consent a { color: var(--green); }
+.btn:disabled { opacity: .65; cursor: progress; }
+.sent { border: 1px solid color-mix(in srgb, var(--green) 40%, var(--line)); background: var(--tint); border-radius: 10px; padding: var(--s-4); display: grid; gap: var(--s-2); justify-items: start; }
+.send-error { color: var(--danger); font-weight: 500; }
+.noscript-list { columns: 2 18rem; padding-left: 1.4rem; margin: 0; }
+.noscript-list li { break-inside: avoid; padding-block: 4px; }
+
+/* Policy and error pages */
+.doc { max-width: 760px; padding-block: var(--s-7) var(--s-8); }
+.doc h1 { font-size: clamp(2rem, 1.5rem + 2vw, 2.8rem); margin-bottom: var(--s-4); }
+.doc h2 { font-size: 1.25rem; margin-block: var(--s-6) var(--s-2); }
+.doc p { color: var(--muted); }
+.doc a { color: var(--green); }
+.doc hr { border: 0; border-top: 1px solid var(--line); margin-block: var(--s-7); }
+.notfound { min-height: 70vh; display: grid; align-content: center; gap: var(--s-4); padding-block: var(--s-8); }
+.notfound h1 { font-size: clamp(2rem, 1.5rem + 3vw, 3.4rem); }

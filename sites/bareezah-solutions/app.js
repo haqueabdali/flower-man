@@ -3,10 +3,14 @@
 
   // Contact details shown on the site. Replace the placeholders with the real ones.
   // whatsapp: international format, digits only (e.g. "8801712345678"); leave "" to hide the WhatsApp button.
+  // form: where contact requests are delivered. Without an endpoint the form only prepares a message to copy.
+  //   Web3Forms: endpoint "https://api.web3forms.com/submit" and accessKey from web3forms.com
+  //   Formspree: endpoint "https://formspree.io/f/<form id>" and accessKey ""
   var CONFIG = {
     phone: "+880 1XXX-XXXXXX",
     whatsapp: "",
     email: "info@bareezahsolutions.com",
+    form: { endpoint: "", accessKey: "" },
     address: { bn: "ঠিকানা এখানে যুক্ত করুন, বাংলাদেশ", en: "Add your office address, Bangladesh" },
     hours: { bn: "শনি থেকে বৃহস্পতিবার, সকাল ১০টা থেকে সন্ধ্যা ৬টা", en: "Saturday to Thursday, 10 am to 6 pm" }
   };
@@ -133,17 +137,20 @@
     "f.name": "Your name *", "f.org": "Organisation", "f.phone": "Mobile number", "f.email": "Email", "f.services": "Which services do you need? *",
     "f.msg": "Short details", "f.msg.ph": "e.g. We need monthly VAT returns and bookkeeping, about 200 transactions a month.", "f.submit": "Prepare message",
     "r.title": "Your message is ready", "r.copy": "Copy message", "r.wa": "Open in WhatsApp", "r.note": "Once you send it, we reply within working days.",
+    "f.consent": "By submitting this form you agree to our", "f.privacy": "Privacy policy", "f.consent2": ".", "f.send": "Send request",
+    "s.title": "Thank you, your request has arrived.", "s.body": "We will contact you on the number or email you gave, within working days.", "s.again": "Send another request",
+    "r.failed": "The request could not be sent online. Copy the message below and send it by email or WhatsApp.",
     "sh.inc": "What is included", "sh.lic": "Approval required", "sh.ask": "Ask about this service",
     "ft.line": "A multi-service business firm run under the laws in force in Bangladesh.", "ft.rights": "All rights reserved."
   };
 
   var MSG = {
     bn: { needName: "আপনার নাম লিখুন।", needContact: "মোবাইল নম্বর অথবা ইমেইল, অন্তত একটি দিন।", badEmail: "ইমেইল ঠিকানাটি সঠিক নয়।",
-      badPhone: "মোবাইল নম্বরটি সঠিক নয়, যেমন 01712345678।", needSvc: "অন্তত একটি সেবা বেছে নিন।", copied: "কপি হয়েছে", copyFail: "কপি করা যায়নি, লেখাটি সিলেক্ট করে কপি করুন",
+      badPhone: "মোবাইল নম্বরটি সঠিক নয়, যেমন 01712345678।", needSvc: "অন্তত একটি সেবা বেছে নিন।", copied: "কপি হয়েছে", sending: "পাঠানো হচ্ছে…", subject: "ওয়েবসাইট থেকে নতুন অনুরোধ", copyFail: "কপি করা যায়নি, লেখাটি সিলেক্ট করে কপি করুন",
       themes: { system: "থিম: সিস্টেম", light: "থিম: লাইট", dark: "থিম: ডার্ক" }, details: "বিস্তারিত দেখুন", needsLic: "অনুমোদন সাপেক্ষ",
       hello: "আসসালামু আলাইকুম, বারিজাহ সলিউশনস।", lName: "নাম", lOrg: "প্রতিষ্ঠান", lPhone: "মোবাইল", lEmail: "ইমেইল", lSvc: "প্রয়োজনীয় সেবা", lMsg: "বিস্তারিত", item: "আইটেম" },
     en: { needName: "Please enter your name.", needContact: "Give a mobile number or an email, at least one.", badEmail: "That email address does not look right.",
-      badPhone: "That mobile number does not look right, e.g. 01712345678.", needSvc: "Choose at least one service.", copied: "Copied", copyFail: "Could not copy. Select the text and copy it.",
+      badPhone: "That mobile number does not look right, e.g. 01712345678.", needSvc: "Choose at least one service.", copied: "Copied", sending: "Sending…", subject: "New request from the website", copyFail: "Could not copy. Select the text and copy it.",
       themes: { system: "Theme: system", light: "Theme: light", dark: "Theme: dark" }, details: "See details", needsLic: "Needs approval",
       hello: "Hello Bareezah Solutions,", lName: "Name", lOrg: "Organisation", lPhone: "Mobile", lEmail: "Email", lSvc: "Services needed", lMsg: "Details", item: "Item" }
   };
@@ -178,7 +185,9 @@
   function captureBangla() {
     $$("[data-i18n]").forEach(function (n) { BN[n.getAttribute("data-i18n")] = n.textContent; });
     $$("[data-i18n-ph]").forEach(function (n) { BN[n.getAttribute("data-i18n-ph")] = n.getAttribute("placeholder"); });
+    BN["f.send"] = "অনুরোধ পাঠান";
   }
+  function latinDigits(s) { return s.replace(/[০-৯]/g, function (d) { return BN_DIGITS.indexOf(d); }); }
   function t(key) { return (state.lang === "en" ? EN : BN)[key] || BN[key] || key; }
 
   function applyLang() {
@@ -192,6 +201,8 @@
     $$(".step-n").forEach(function (n) { n.setAttribute("data-label", num(n.getAttribute("data-n"), lang)); });
     $("#cAddress").textContent = CONFIG.address[lang];
     $("#cHours").textContent = CONFIG.hours[lang];
+    $("#year").textContent = num(new Date().getFullYear(), lang);
+    if (CONFIG.form.endpoint) $("#submitBtn").textContent = t("f.send");
     updateThemeLabel();
     renderMemo();
     renderChips();
@@ -256,7 +267,7 @@
     wrap.textContent = "";
     CATEGORIES.forEach(function (c) {
       var count = c.id === "all" ? SERVICES.length : SERVICES.filter(function (s) { return s.cat === c.id; }).length;
-      var b = el("button", { type: "button", role: "tab", "class": "chip", "aria-selected": String(state.cat === c.id) });
+      var b = el("button", { type: "button", "class": "chip", "aria-pressed": String(state.cat === c.id) });
       b.appendChild(document.createTextNode(c[state.lang]));
       b.appendChild(el("span", { "class": "chip-count" }, num(count, state.lang)));
       b.addEventListener("click", function () {
@@ -373,7 +384,7 @@
   }
   function validate() {
     var v = fieldVals(), m = MSG[state.lang];
-    var phoneDigits = v.phone.replace(/[০-৯]/g, function (d) { return BN_DIGITS.indexOf(d); }).replace(/[^\d]/g, "");
+    var phoneDigits = latinDigits(v.phone).replace(/[^\d]/g, "");
     var ok = setErr("#eName", [$("#fName")], v.name ? "" : m.needName);
     var contactErr = "";
     if (!v.phone && !v.email) contactErr = m.needContact;
@@ -404,16 +415,71 @@
     return text;
   }
 
+  function showResult(failed) {
+    buildMessage();
+    $("#sendError").hidden = !failed;
+    $("#result").hidden = false;
+    $("#result").scrollIntoView({ block: "nearest" });
+  }
+  function showSent() {
+    $("#contactForm").reset();
+    store("bz.draft", null);
+    $("#result").hidden = true;
+    $("#sent").hidden = false;
+    $("#sent").scrollIntoView({ block: "nearest" });
+  }
+  function send() {
+    var v = fieldVals(), m = MSG[state.lang];
+    var names = v.services.map(function (id) {
+      var s = SERVICES.filter(function (x) { return x.id === id; })[0];
+      return s ? s.en.t : id;
+    });
+    var payload = {
+      subject: m.subject + " | " + v.name, from_name: "Bareezah Solutions website",
+      name: v.name, organisation: v.org, phone: latinDigits(v.phone), email: v.email,
+      services: names.join(", "), message: v.msg, language: state.lang, page: location.href
+    };
+    if (v.email) payload.replyto = v.email;
+    if (CONFIG.form.accessKey) payload.access_key = CONFIG.form.accessKey;
+    return fetch(CONFIG.form.endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json().catch(function () { return {}; });
+    }).then(function (body) {
+      if (body && body.success === false) throw new Error(body.message || "rejected");
+    });
+  }
+
+  var sending = false;
   $("#contactForm").addEventListener("submit", function (e) {
     e.preventDefault();
+    if (sending) return;
+    $("#sent").hidden = true;
     if (!validate()) {
       var first = $('[aria-invalid="true"]') || $("#pick input");
       if (first) first.focus();
       return;
     }
-    buildMessage();
-    $("#result").hidden = false;
-    $("#result").scrollIntoView({ block: "nearest" });
+    // Bots fill the hidden field; humans never see it.
+    if ($("#fWebsite").value) { showSent(); return; }
+    if (!CONFIG.form.endpoint) { showResult(false); return; }
+
+    var btn = $("#submitBtn");
+    sending = true;
+    btn.disabled = true;
+    btn.textContent = MSG[state.lang].sending;
+    send().then(showSent, function () { showResult(true); }).then(function () {
+      sending = false;
+      btn.disabled = false;
+      btn.textContent = t("f.send");
+    });
+  });
+  $("#sendAnother").addEventListener("click", function () {
+    $("#sent").hidden = true;
+    $("#fName").focus();
   });
   $("#contactForm").addEventListener("input", function () {
     saveDraft();
@@ -489,7 +555,6 @@
 
   $("#cPhone").textContent = CONFIG.phone;
   $("#cEmail").textContent = CONFIG.email;
-  $("#year").textContent = new Date().getFullYear();
   captureBangla();
   restoreDraft();
   applyTheme();
