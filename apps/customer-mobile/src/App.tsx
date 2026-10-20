@@ -7,6 +7,7 @@ import { Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { api } from './api';
+import { language, t } from './i18n';
 import { NavigationContext, type Navigator, type Route } from './navigation';
 import { registerForPush } from './push';
 import { AccountScreen, InboxScreen } from './screens/account';
@@ -18,11 +19,11 @@ import { ProductScreen, ShopScreen } from './screens/shop';
 import { colors, Loading } from './ui';
 
 const TABS: { route: Route; label: string; icon: string }[] = [
-  { route: { name: 'shop' }, label: 'Shop', icon: '🌷' },
-  { route: { name: 'requests' }, label: 'Custom', icon: '💐' },
-  { route: { name: 'orders' }, label: 'Orders', icon: '📦' },
-  { route: { name: 'inbox' }, label: 'Inbox', icon: '🔔' },
-  { route: { name: 'account' }, label: 'Account', icon: '👤' },
+  { route: { name: 'shop' }, label: t('tabShop'), icon: '🌷' },
+  { route: { name: 'requests' }, label: t('tabCustom'), icon: '💐' },
+  { route: { name: 'orders' }, label: t('tabOrders'), icon: '📦' },
+  { route: { name: 'inbox' }, label: t('tabInbox'), icon: '🔔' },
+  { route: { name: 'account' }, label: t('tabAccount'), icon: '👤' },
 ];
 
 /** Deep links from emails: flowerman://verify-email?token=… and flowerman://reset-password?token=… */
@@ -55,7 +56,10 @@ export function App() {
   }, [url]);
 
   useEffect(() => {
-    if (user) void registerForPush('customer').catch(() => undefined);
+    if (!user) return;
+    void registerForPush('customer').catch(() => undefined);
+    // Notifications from the API are written in this language.
+    void api.request('me/preferences', { method: 'PUT', body: { language } }).catch(() => undefined);
   }, [user?.id]);
 
   const navigator = useMemo<Navigator>(
@@ -84,7 +88,7 @@ export function App() {
         <View style={{ flex: 1 }}>{renderRoute(route, user, () => setUser(null))}</View>
         <View style={{ flexDirection: 'row', borderTopWidth: 1, borderColor: colors.line, backgroundColor: '#fff', paddingBottom: 20, paddingTop: 8 }}>
           {TABS.map((tab) => (
-            <Pressable key={tab.label} style={{ flex: 1, alignItems: 'center' }} onPress={() => navigator.reset(tab.route)}>
+            <Pressable key={tab.route.name} style={{ flex: 1, alignItems: 'center' }} onPress={() => navigator.reset(tab.route)}>
               <Text style={{ fontSize: 20 }}>{tab.icon}</Text>
               <Text style={{ fontSize: 11, color: route.name === tab.route.name ? colors.brand : colors.muted }}>{tab.label}</Text>
             </Pressable>

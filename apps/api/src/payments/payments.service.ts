@@ -7,7 +7,7 @@ import { recordAudit } from '../common/audit.js';
 import { PG_POOL } from '../database/database.module.js';
 import { withTransaction } from '../database/transaction.js';
 import { LedgerService } from '../ledger/ledger.service.js';
-import { NotificationsService } from '../notifications/notifications.service.js';
+import { euros, NotificationsService } from '../notifications/notifications.service.js';
 import { lockOrder, transitionOrder } from '../orders/order-workflow.js';
 import { PAYMENT_PROVIDER, type PaymentProvider } from './payment-provider.js';
 
@@ -98,14 +98,14 @@ export class PaymentsService {
     await this.notifications.safely(async () => {
       await this.notifications.notifyUser(order.customerId, {
         type: 'ORDER_PAID',
-        title: 'Payment received',
-        body: `Order #${order.orderNumber} is paid. The florist will confirm it shortly.`,
+        title: { it: 'Pagamento ricevuto', en: 'Payment received' },
+        body: { it: `L'ordine #${order.orderNumber} è pagato. Il fiorista lo confermerà a breve.`, en: `Order #${order.orderNumber} is paid. The florist will confirm it shortly.` },
         data: { orderId: order.id },
       });
       await this.notifications.notifyPartner(order.sellerId, {
         type: 'NEW_ORDER',
-        title: 'New order',
-        body: `Order #${order.orderNumber} is waiting for confirmation.`,
+        title: { it: 'Nuovo ordine', en: 'New order' },
+        body: { it: `L'ordine #${order.orderNumber} attende la tua conferma.`, en: `Order #${order.orderNumber} is waiting for confirmation.` },
         data: { orderId: order.id },
       });
     });
@@ -179,8 +179,11 @@ export class PaymentsService {
     await this.notifications.safely(() =>
       this.notifications.notifyUser(plan.order.customerId, {
         type: 'ORDER_REFUNDED',
-        title: 'Refund issued',
-        body: `We refunded €${(plan.amount / 100).toFixed(2)} for order #${plan.order.orderNumber}.`,
+        title: { it: 'Rimborso effettuato', en: 'Refund issued' },
+        body: {
+          it: `Ti abbiamo rimborsato ${euros(plan.amount).it} per l'ordine #${plan.order.orderNumber}.`,
+          en: `We refunded ${euros(plan.amount).en} for order #${plan.order.orderNumber}.`,
+        },
         data: { orderId },
       }),
     );

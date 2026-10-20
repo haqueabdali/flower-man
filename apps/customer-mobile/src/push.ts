@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { api } from './api';
+import { t } from './i18n';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
@@ -17,7 +18,7 @@ export async function registerForPush(app: 'customer' | 'partner'): Promise<void
   const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? (Constants.expoConfig?.extra?.['eas'] as { projectId?: string } | undefined)?.projectId;
   if (!Device.isDevice || !projectId) return;
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', { name: 'Flower Man', importance: Notifications.AndroidImportance.HIGH });
+    await Notifications.setNotificationChannelAsync('default', { name: t('appName'), importance: Notifications.AndroidImportance.HIGH });
   }
   const existing = await Notifications.getPermissionsAsync();
   const status = existing.status === 'granted' ? existing.status : (await Notifications.requestPermissionsAsync()).status;

@@ -316,3 +316,12 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   like the catalogue, served with `Cache-Control: immutable` (the version changes with every new photo) and a `default-src 'none'` CSP.
 - The partner app crops photos square and compresses them before upload (camera or gallery). The customer app shows a
   placeholder when a product has no photo. Replaced photos stay in storage (no deletion yet).
+
+## ADR-018: Italian and English
+
+- Both apps are fully localized (`src/i18n.ts` in each app): Italian on phones set to Italian, English otherwise. Dates and
+  times follow the same locale. Keys are typed, so a missing translation fails the typecheck.
+- After sign-in each app sends the device language with `PUT /me/preferences` (`users.language`, migration 0015, default `it`).
+- Notifications are written in the recipient's language when they are created (`Localized` texts in the API), so the inbox and
+  push messages match the phone. Emails stay bilingual (Italian first).
+- API error messages are still English; the apps show their own localized texts for client-side errors.

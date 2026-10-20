@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 
 import { api } from '../api';
+import { DELIVERY_STATUS_LABELS, locale, SETTLEMENT_STATUS_LABELS, t } from '../i18n';
 import { useNavigation } from '../navigation';
 import { sendCurrentPosition, startTracking, stopTracking } from '../tracking';
 import { attempt, Body, Button, Card, Loading, Muted, Pill, Screen, Strong } from '../ui';
@@ -26,25 +27,25 @@ export function CourierJobsScreen() {
   }, [load]);
 
   return (
-    <Screen title="Deliveries" onBack={navigation.back}>
-      <Strong>My active deliveries</Strong>
-      {!mine ? <Loading /> : mine.length === 0 && <Muted>None.</Muted>}
+    <Screen title={t('jobsTitle')} onBack={navigation.back}>
+      <Strong>{t('jobsMine')}</Strong>
+      {!mine ? <Loading /> : mine.length === 0 && <Muted>{t('jobsNone')}</Muted>}
       {mine?.map((job) => (
         <Card key={job.deliveryId} onPress={() => navigation.push({ name: 'courierJob', job })}>
-          <Pill label={job.status} />
+          <Pill label={DELIVERY_STATUS_LABELS[job.status]} />
           <Strong>#{job.orderNumber} · {job.pickupName}</Strong>
-          <Muted>to {job.dropoffAddress}</Muted>
+          <Muted>{t('jobsTo', { address: job.dropoffAddress })}</Muted>
         </Card>
       ))}
-      <Strong>Available jobs</Strong>
-      {offered?.length === 0 && <Muted>No jobs right now. Make sure you are set as available.</Muted>}
+      <Strong>{t('jobsAvailable')}</Strong>
+      {offered?.length === 0 && <Muted>{t('jobsEmpty')}</Muted>}
       {offered?.map((job) => (
         <Card key={job.deliveryId}>
-          <Strong>#{job.orderNumber} · earn {formatPrice(job.feeMinor)}</Strong>
-          <Muted>Pick up at {job.pickupName}{km(job.distanceMeters)}</Muted>
-          <Muted>Deliver to {job.dropoffAddress}</Muted>
+          <Strong>{t('jobsEarn', { number: job.orderNumber, price: formatPrice(job.feeMinor) })}</Strong>
+          <Muted>{t('jobsPickUpAt', { name: job.pickupName, distance: km(job.distanceMeters) })}</Muted>
+          <Muted>{t('jobsDeliverTo', { address: job.dropoffAddress })}</Muted>
           <Button
-            title="Accept"
+            title={t('jobsAccept')}
             onPress={() =>
               attempt(async () => {
                 const accepted = await api.request<CourierJob>(`courier/deliveries/${job.deliveryId}/accept`, { method: 'POST' });
@@ -78,7 +79,7 @@ export function CourierJobScreen({ job: initial }: { job: CourierJob }) {
   const captureProof = () =>
     attempt(async () => {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) throw new Error('Camera permission is needed for the delivery photo.');
+      if (!permission.granted) throw new Error(t('jobCameraNeeded'));
       const photo = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.6, exif: false });
       if (photo.canceled || !photo.assets[0]) return;
       const blob = await (await fetch(photo.assets[0].uri)).blob();
@@ -93,32 +94,32 @@ export function CourierJobScreen({ job: initial }: { job: CourierJob }) {
     });
 
   return (
-    <Screen title={`Delivery #${job.orderNumber}`} onBack={navigation.back}>
-      <Pill label={job.status} />
+    <Screen title={t('jobTitle', { number: job.orderNumber })} onBack={navigation.back}>
+      <Pill label={DELIVERY_STATUS_LABELS[job.status]} />
       <Card>
-        <Strong>Pick up · {job.pickupName}</Strong>
+        <Strong>{t('jobPickUp', { name: job.pickupName })}</Strong>
         <Body>{job.pickupAddress ?? ''}</Body>
-        {job.pickupLocation && job.status === 'ASSIGNED' && <Button kind="secondary" title="Navigate to pickup" onPress={() => openMaps(job.pickupLocation!.latitude, job.pickupLocation!.longitude)} />}
+        {job.pickupLocation && job.status === 'ASSIGNED' && <Button kind="secondary" title={t('jobNavigatePickup')} onPress={() => openMaps(job.pickupLocation!.latitude, job.pickupLocation!.longitude)} />}
       </Card>
       <Card>
-        <Strong>Deliver to {job.recipientName}</Strong>
+        <Strong>{t('jobDeliverTo', { name: job.recipientName })}</Strong>
         <Body>{job.dropoffAddress}</Body>
-        {job.recipientPhone && <Button kind="secondary" title={`Call ${job.recipientPhone}`} onPress={() => void Linking.openURL(`tel:${job.recipientPhone}`)} />}
-        {job.status !== 'ASSIGNED' && <Button kind="secondary" title="Navigate to customer" onPress={() => openMaps(job.dropoffLocation.latitude, job.dropoffLocation.longitude)} />}
+        {job.recipientPhone && <Button kind="secondary" title={t('jobCall', { phone: job.recipientPhone })} onPress={() => void Linking.openURL(`tel:${job.recipientPhone}`)} />}
+        {job.status !== 'ASSIGNED' && <Button kind="secondary" title={t('jobNavigateCustomer')} onPress={() => openMaps(job.dropoffLocation.latitude, job.dropoffLocation.longitude)} />}
       </Card>
-      {job.status === 'ASSIGNED' && <Button title="Picked up the flowers" onPress={() => act('pickup')} />}
-      {job.status === 'ASSIGNED' && <Button kind="secondary" title="Give the job back" onPress={() => attempt(async () => { await api.request(`courier/deliveries/${job.deliveryId}/release`, { method: 'POST' }); await stopTracking(); navigation.reset({ name: 'courierJobs' }); })} />}
-      {job.status === 'PICKED_UP' && <Button title="Start delivery" onPress={() => act('start')} />}
+      {job.status === 'ASSIGNED' && <Button title={t('jobPickedUp')} onPress={() => act('pickup')} />}
+      {job.status === 'ASSIGNED' && <Button kind="secondary" title={t('jobRelease')} onPress={() => attempt(async () => { await api.request(`courier/deliveries/${job.deliveryId}/release`, { method: 'POST' }); await stopTracking(); navigation.reset({ name: 'courierJobs' }); })} />}
+      {job.status === 'PICKED_UP' && <Button title={t('jobStart')} onPress={() => act('start')} />}
       {job.status === 'IN_TRANSIT' && (
         <>
-          <Button kind="secondary" title="Share my position now" onPress={() => attempt(() => sendCurrentPosition(job.deliveryId))} />
-          {!arrived && <Button title="I've arrived" onPress={() => attempt(async () => { setJob(await api.request<CourierJob>(`courier/deliveries/${job.deliveryId}/arrive`, { method: 'POST' })); setArrived(true); })} />}
-          <Button kind={hasProof ? 'secondary' : 'primary'} title={hasProof ? 'Retake proof photo' : 'Take proof photo'} onPress={captureProof} />
-          {hasProof && <Button title="Complete delivery" onPress={complete} />}
+          <Button kind="secondary" title={t('jobSharePosition')} onPress={() => attempt(() => sendCurrentPosition(job.deliveryId))} />
+          {!arrived && <Button title={t('jobArrived')} onPress={() => attempt(async () => { setJob(await api.request<CourierJob>(`courier/deliveries/${job.deliveryId}/arrive`, { method: 'POST' })); setArrived(true); })} />}
+          <Button kind={hasProof ? 'secondary' : 'primary'} title={hasProof ? t('jobRetakeProof') : t('jobTakeProof')} onPress={captureProof} />
+          {hasProof && <Button title={t('jobComplete')} onPress={complete} />}
         </>
       )}
-      {job.status === 'DELIVERED' && <Card><Strong>Delivered. Thank you! 🌸</Strong><Muted>You earned {formatPrice(job.feeMinor)}.</Muted></Card>}
-      <Muted>Your position is shared only while this delivery is active.</Muted>
+      {job.status === 'DELIVERED' && <Card><Strong>{t('jobDelivered')}</Strong><Muted>{t('jobEarned', { price: formatPrice(job.feeMinor) })}</Muted></Card>}
+      <Muted>{t('jobPrivacy')}</Muted>
     </Screen>
   );
 }
@@ -129,15 +130,15 @@ export function EarningsScreen({ mode }: { mode: 'seller' | 'courier' }) {
   useEffect(() => {
     void attempt(async () => setData(await api.request(`${mode}/earnings`)));
   }, [mode]);
-  if (!data) return <Screen title="Earnings" onBack={navigation.back}><Loading /></Screen>;
+  if (!data) return <Screen title={t('earnings')} onBack={navigation.back}><Loading /></Screen>;
   return (
-    <Screen title="Earnings" onBack={navigation.back}>
-      <Card><Muted>Not yet paid out</Muted><Strong>{formatPrice(data.balanceMinor)}</Strong></Card>
-      <Strong>Payouts</Strong>
-      {data.settlements.length === 0 && <Muted>No payouts yet.</Muted>}
-      {data.settlements.map((s) => <Card key={s.id}><Pill label={s.status} /><Body>{formatPrice(s.totalMinor)} · {new Date(s.updatedAt).toLocaleDateString('it-IT')}</Body>{s.externalReference && <Muted>Ref. {s.externalReference}</Muted>}</Card>)}
-      <Strong>Movements</Strong>
-      {data.entries.map((e) => <Card key={e.id}><Body>{e.description}</Body><Strong>{formatPrice(e.amountMinor)}</Strong><Muted>{new Date(e.createdAt).toLocaleString('it-IT')}{e.settlementId ? ' · paid out' : ''}</Muted></Card>)}
+    <Screen title={t('earnings')} onBack={navigation.back}>
+      <Card><Muted>{t('earningsUnpaid')}</Muted><Strong>{formatPrice(data.balanceMinor)}</Strong></Card>
+      <Strong>{t('earningsPayouts')}</Strong>
+      {data.settlements.length === 0 && <Muted>{t('earningsNoPayouts')}</Muted>}
+      {data.settlements.map((s) => <Card key={s.id}><Pill label={SETTLEMENT_STATUS_LABELS[s.status]} /><Body>{formatPrice(s.totalMinor)} · {new Date(s.updatedAt).toLocaleDateString(locale)}</Body>{s.externalReference && <Muted>{t('earningsRef', { reference: s.externalReference })}</Muted>}</Card>)}
+      <Strong>{t('earningsMovements')}</Strong>
+      {data.entries.map((e) => <Card key={e.id}><Body>{e.description}</Body><Strong>{formatPrice(e.amountMinor)}</Strong><Muted>{new Date(e.createdAt).toLocaleString(locale)}{e.settlementId ? t('earningsPaidOut') : ''}</Muted></Card>)}
     </Screen>
   );
 }

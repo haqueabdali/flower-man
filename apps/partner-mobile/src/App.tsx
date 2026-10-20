@@ -6,6 +6,7 @@ import { Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { api } from './api';
+import { language, t } from './i18n';
 import { NavigationContext, type Navigator, type Route } from './navigation';
 import { registerForPush } from './push';
 import { AccountScreen, InboxScreen } from './screens/account';
@@ -17,9 +18,9 @@ import { stopTracking } from './tracking';
 import { colors, Loading } from './ui';
 
 const TABS: { route: Route; label: string; icon: string }[] = [
-  { route: { name: 'home' }, label: 'Home', icon: '🏠' },
-  { route: { name: 'inbox' }, label: 'Inbox', icon: '🔔' },
-  { route: { name: 'account' }, label: 'Account', icon: '👤' },
+  { route: { name: 'home' }, label: t('tabHome'), icon: '🏠' },
+  { route: { name: 'inbox' }, label: t('tabInbox'), icon: '🔔' },
+  { route: { name: 'account' }, label: t('tabAccount'), icon: '👤' },
 ];
 
 function routeFromUrl(url: string | null): Route | null {
@@ -54,7 +55,10 @@ export function App() {
   }, [url]);
 
   useEffect(() => {
-    if (user) void registerForPush('partner').catch(() => undefined);
+    if (!user) return;
+    void registerForPush('partner').catch(() => undefined);
+    // Notifications from the API are written in this language.
+    void api.request('me/preferences', { method: 'PUT', body: { language } }).catch(() => undefined);
   }, [user?.id]);
 
   const navigator = useMemo<Navigator>(

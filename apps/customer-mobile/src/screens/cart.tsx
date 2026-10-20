@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { api } from '../api';
+import { t } from '../i18n';
 import { currentLocation } from '../location';
 import { useNavigation } from '../navigation';
 import { attempt, Body, Button, Card, Field, Loading, Muted, Screen, Strong } from '../ui';
@@ -23,12 +24,12 @@ export function CartScreen() {
     });
 
   return (
-    <Screen title="Your cart" onBack={navigation.back}>
-      {!cart ? <Loading /> : cart.items.length === 0 ? <Muted>Your cart is empty.</Muted> : null}
+    <Screen title={t('cartTitle')} onBack={navigation.back}>
+      {!cart ? <Loading /> : cart.items.length === 0 ? <Muted>{t('cartEmpty')}</Muted> : null}
       {cart?.items.map((item) => (
         <Card key={item.productId}>
           <Strong>{item.name}</Strong>
-          {!item.available && <Muted>No longer available: please remove it.</Muted>}
+          {!item.available && <Muted>{t('cartUnavailable')}</Muted>}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Button kind="secondary" title="−" onPress={() => change(item.productId, item.quantity - 1)} />
             <Body>{item.quantity}</Body>
@@ -39,9 +40,9 @@ export function CartScreen() {
       ))}
       {cart && cart.items.length > 0 && (
         <>
-          <Strong>Subtotal {formatPrice(cart.subtotalMinor)}</Strong>
-          <Muted>Delivery fee and final total are confirmed at checkout.</Muted>
-          <Button title="Checkout" onPress={() => navigation.push({ name: 'checkout' })} />
+          <Strong>{t('cartSubtotal', { price: formatPrice(cart.subtotalMinor) })}</Strong>
+          <Muted>{t('cartFeeNote')}</Muted>
+          <Button title={t('cartCheckout')} onPress={() => navigation.push({ name: 'checkout' })} />
         </>
       )}
     </Screen>
@@ -80,14 +81,14 @@ export function CheckoutScreen() {
     });
 
   return (
-    <Screen title="Delivery details" onBack={navigation.back}>
-      <Field label="Recipient name" value={recipientName} onChangeText={setRecipientName} />
-      <Field label="Recipient phone" value={recipientPhone} onChangeText={setRecipientPhone} keyboardType="phone-pad" />
-      <Field label="Delivery address" value={deliveryAddress} onChangeText={setDeliveryAddress} placeholder="Via, number, CAP Bergamo" />
-      <Muted>The delivery position uses your current location; put the exact address above.</Muted>
-      <Field label="Notes for the courier (optional)" value={deliveryNotes} onChangeText={setDeliveryNotes} />
-      <Field label="Gift message (optional)" value={giftMessage} onChangeText={setGiftMessage} multiline />
-      <Button title={busy ? 'Placing order…' : 'Continue to payment'} onPress={placeOrder} disabled={busy} />
+    <Screen title={t('checkoutTitle')} onBack={navigation.back}>
+      <Field label={t('checkoutRecipientName')} value={recipientName} onChangeText={setRecipientName} />
+      <Field label={t('checkoutRecipientPhone')} value={recipientPhone} onChangeText={setRecipientPhone} keyboardType="phone-pad" />
+      <Field label={t('checkoutAddress')} value={deliveryAddress} onChangeText={setDeliveryAddress} placeholder={t('checkoutAddressPlaceholder')} />
+      <Muted>{t('checkoutLocationNote')}</Muted>
+      <Field label={t('checkoutNotes')} value={deliveryNotes} onChangeText={setDeliveryNotes} />
+      <Field label={t('checkoutGift')} value={giftMessage} onChangeText={setGiftMessage} multiline />
+      <Button title={busy ? t('checkoutPlacing') : t('checkoutContinue')} onPress={placeOrder} disabled={busy} />
     </Screen>
   );
 }
@@ -101,10 +102,10 @@ export function PaymentScreen({ checkout }: { checkout: CheckoutResponse }) {
 
   const payWithStripe = () =>
     attempt(async () => {
-      if (!checkout.payment.clientSecret) throw new Error('Payment is not ready. Please try again.');
+      if (!checkout.payment.clientSecret) throw new Error(t('paymentNotReady'));
       setBusy(true);
       try {
-        const init = await initPaymentSheet({ merchantDisplayName: 'Flower Man', paymentIntentClientSecret: checkout.payment.clientSecret });
+        const init = await initPaymentSheet({ merchantDisplayName: t('appName'), paymentIntentClientSecret: checkout.payment.clientSecret });
         if (init.error) throw new Error(init.error.message);
         const result = await presentPaymentSheet();
         if (result.error) {
@@ -125,22 +126,22 @@ export function PaymentScreen({ checkout }: { checkout: CheckoutResponse }) {
     });
 
   return (
-    <Screen title="Payment">
+    <Screen title={t('paymentTitle')}>
       <Card>
-        <Strong>Order #{checkout.order.orderNumber}</Strong>
+        <Strong>{t('paymentOrder', { number: checkout.order.orderNumber })}</Strong>
         <Muted>{checkout.order.sellerName}</Muted>
-        <Body>Flowers {formatPrice(checkout.order.subtotalMinor)}</Body>
-        <Body>Delivery {formatPrice(checkout.order.deliveryFeeMinor)}</Body>
-        <Strong>Total {formatPrice(checkout.order.totalMinor)}</Strong>
+        <Body>{t('paymentFlowers', { price: formatPrice(checkout.order.subtotalMinor) })}</Body>
+        <Body>{t('paymentDelivery', { price: formatPrice(checkout.order.deliveryFeeMinor) })}</Body>
+        <Strong>{t('paymentTotal', { price: formatPrice(checkout.order.totalMinor) })}</Strong>
       </Card>
       {checkout.payment.provider === 'STRIPE' ? (
-        <Button title={busy ? 'Opening payment…' : `Pay ${formatPrice(checkout.payment.amountMinor)}`} onPress={payWithStripe} disabled={busy} />
+        <Button title={busy ? t('paymentOpening') : t('paymentPay', { price: formatPrice(checkout.payment.amountMinor) })} onPress={payWithStripe} disabled={busy} />
       ) : __DEV__ ? (
-        <Button title="Pay (development test payment)" onPress={simulate} />
+        <Button title={t('paymentTest')} onPress={simulate} />
       ) : (
-        <Muted>Payments are not available right now.</Muted>
+        <Muted>{t('paymentUnavailable')}</Muted>
       )}
-      <Button kind="secondary" title="Pay later" onPress={done} />
+      <Button kind="secondary" title={t('paymentLater')} onPress={done} />
     </Screen>
   );
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Linking } from 'react-native';
 
 import { api } from '../api';
+import { locale, t } from '../i18n';
 import { attempt, Body, Button, Card, Loading, Muted, Screen, Strong } from '../ui';
 
 export function InboxScreen() {
@@ -11,13 +12,13 @@ export function InboxScreen() {
     void attempt(async () => setItems((await api.request<{ items: NotificationItem[] }>('me/notifications')).items));
   }, []);
   return (
-    <Screen title="Notifications">
-      {!items ? <Loading /> : items.length === 0 && <Muted>No notifications yet.</Muted>}
+    <Screen title={t('inboxTitle')}>
+      {!items ? <Loading /> : items.length === 0 && <Muted>{t('inboxEmpty')}</Muted>}
       {items?.map((item) => (
         <Card key={item.id} onPress={() => void api.request(`me/notifications/${item.id}/read`, { method: 'POST' }).catch(() => undefined)}>
           <Strong>{item.readAt ? '' : '● '}{item.title}</Strong>
           <Body>{item.body}</Body>
-          <Muted>{new Date(item.createdAt).toLocaleString('it-IT')}</Muted>
+          <Muted>{new Date(item.createdAt).toLocaleString(locale)}</Muted>
         </Card>
       ))}
     </Screen>
@@ -28,22 +29,22 @@ export function AccountScreen({ user, onSignedOut }: { user: AuthUser; onSignedO
   const privacy = process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL;
   const terms = process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL;
   return (
-    <Screen title="Account">
+    <Screen title={t('accountTitle')}>
       <Card>
         <Strong>{user.fullName}</Strong>
         <Body>{user.email}</Body>
-        <Muted>{user.emailVerified ? 'Email confirmed' : 'Email not confirmed yet'}</Muted>
+        <Muted>{user.emailVerified ? t('accountEmailConfirmed') : t('accountEmailNotConfirmed')}</Muted>
       </Card>
-      {privacy && <Button kind="secondary" title="Privacy policy" onPress={() => void Linking.openURL(privacy)} />}
-      {terms && <Button kind="secondary" title="Terms of service" onPress={() => void Linking.openURL(terms)} />}
-      <Button kind="secondary" title="Sign out" onPress={() => attempt(async () => { await api.signOut(); onSignedOut(); })} />
+      {privacy && <Button kind="secondary" title={t('accountPrivacy')} onPress={() => void Linking.openURL(privacy)} />}
+      {terms && <Button kind="secondary" title={t('accountTerms')} onPress={() => void Linking.openURL(terms)} />}
+      <Button kind="secondary" title={t('accountSignOut')} onPress={() => attempt(async () => { await api.signOut(); onSignedOut(); })} />
       <Button
         kind="danger"
-        title="Delete my account"
+        title={t('accountDelete')}
         onPress={() =>
-          Alert.alert('Delete account', 'We will delete your account and personal data. Orders are kept anonymously for legal bookkeeping.', [
-            { text: 'Keep my account', style: 'cancel' },
-            { text: 'Request deletion', style: 'destructive', onPress: () => void attempt(async () => { await api.request('me/deletion-request', { method: 'POST', body: {} }); Alert.alert('Flower Man', 'Your request has been received.'); }) },
+          Alert.alert(t('accountDeleteTitle'), t('accountDeleteBody'), [
+            { text: t('accountDeleteKeep'), style: 'cancel' },
+            { text: t('accountDeleteConfirm'), style: 'destructive', onPress: () => void attempt(async () => { await api.request('me/deletion-request', { method: 'POST', body: {} }); Alert.alert(t('appName'), t('accountDeleteReceived')); }) },
           ])
         }
       />

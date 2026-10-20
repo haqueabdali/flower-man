@@ -322,6 +322,12 @@ export interface CourierJob {
 }
 
 // ---------------------------------------------------------------- notifications
+export const LANGUAGES = ['it', 'en'] as const;
+export type Language = (typeof LANGUAGES)[number];
+/** The apps report the device language; notifications are written in it. */
+export const preferencesSchema = z.strictObject({ language: z.enum(LANGUAGES) });
+export type PreferencesRequest = z.infer<typeof preferencesSchema>;
+
 export const pushTokenSchema = z.strictObject({
   token: z.string().regex(/^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$/, { message: 'Expected an Expo push token.' }),
   platform: z.enum(['ios', 'android']),

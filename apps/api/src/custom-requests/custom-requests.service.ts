@@ -9,7 +9,7 @@ import type { AppConfig } from '../config/app-config.js';
 import { APP_CONFIG } from '../config/config.module.js';
 import { PG_POOL } from '../database/database.module.js';
 import { withTransaction } from '../database/transaction.js';
-import { NotificationsService } from '../notifications/notifications.service.js';
+import { euros, NotificationsService } from '../notifications/notifications.service.js';
 import { requireVerifiedEmail, validateRequestedDelivery } from '../orders/commerce.service.js';
 import { ORDER_SUMMARY_SELECT, toOrderSummary } from '../orders/order-views.js';
 import type { ActingPartner } from '../partners/partners.service.js';
@@ -114,8 +114,8 @@ export class CustomRequestsService {
       for (const seller of sellers.rows) {
         await this.notifications.notifyPartner(seller.id, {
           type: 'CUSTOM_REQUEST_NEW',
-          title: 'New custom bouquet request',
-          body: `${input.occasion}, budget €${(input.budgetMinor / 100).toFixed(2)}`,
+          title: { it: 'Nuova richiesta di mazzo personalizzato', en: 'New custom bouquet request' },
+          body: { it: `${input.occasion}, budget ${euros(input.budgetMinor).it}`, en: `${input.occasion}, budget ${euros(input.budgetMinor).en}` },
           data: { requestId: id },
         });
       }
@@ -222,7 +222,12 @@ export class CustomRequestsService {
       const offer = await this.pool.query<{ seller_id: string }>('SELECT seller_id FROM custom_offers WHERE id = $1', [offerId]);
       const sellerId = offer.rows[0]?.seller_id;
       if (sellerId) {
-        await this.notifications.notifyPartner(sellerId, { type: 'CUSTOM_OFFER_SELECTED', title: 'Your offer was selected', body: 'The customer chose your bouquet. You will be notified once it is paid.', data: { requestId, orderId } });
+        await this.notifications.notifyPartner(sellerId, {
+          type: 'CUSTOM_OFFER_SELECTED',
+          title: { it: 'La tua offerta è stata scelta', en: 'Your offer was selected' },
+          body: { it: 'Il cliente ha scelto il tuo mazzo. Riceverai un avviso appena sarà pagato.', en: 'The customer chose your bouquet. You will be notified once it is paid.' },
+          data: { requestId, orderId },
+        });
       }
     });
     const payment = await this.payments.instructionsFor(orderId);
@@ -274,8 +279,8 @@ export class CustomRequestsService {
     await this.notifications.safely(() =>
       this.notifications.notifyUser(row.customer_id, {
         type: 'CUSTOM_OFFER_RECEIVED',
-        title: 'New offer for your bouquet',
-        body: `${seller.displayName}: €${(input.priceMinor / 100).toFixed(2)} for "${row.occasion}"`,
+        title: { it: 'Nuova offerta per il tuo mazzo', en: 'New offer for your bouquet' },
+        body: { it: `${seller.displayName}: ${euros(input.priceMinor).it} per "${row.occasion}"`, en: `${seller.displayName}: ${euros(input.priceMinor).en} for "${row.occasion}"` },
         data: { requestId },
       }),
     );

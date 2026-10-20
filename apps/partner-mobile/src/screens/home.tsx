@@ -1,19 +1,20 @@
-import type { PartnerAccount, PartnerApplicationRequest } from '@flower-man/contracts';
+import type { PartnerAccount, PartnerApplicationRequest, VerificationStatus } from '@flower-man/contracts';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 import { Switch, View } from 'react-native';
 
 import { api } from '../api';
+import { PARTNER_KIND_LABELS, t, VERIFICATION_STATUS_LABELS } from '../i18n';
 import { useNavigation } from '../navigation';
 import { attempt, Body, Button, Card, Field, Loading, Muted, Pill, Screen, Strong } from '../ui';
 
-const STATUS_HELP: Record<string, string> = {
-  DRAFT: 'Complete your profile and submit it for verification.',
-  SUBMITTED: 'Submitted. Our team will review your application soon.',
-  UNDER_REVIEW: 'Under review by the Flower Man team.',
-  APPROVED: 'Approved: you can work on Flower Man.',
-  REJECTED: 'Not approved. Read the notes, update your profile and submit again.',
-  SUSPENDED: 'Suspended. Contact Flower Man support.',
+const STATUS_HELP: Record<VerificationStatus, string> = {
+  DRAFT: t('statusHelpDraft'),
+  SUBMITTED: t('statusHelpSubmitted'),
+  UNDER_REVIEW: t('statusHelpUnderReview'),
+  APPROVED: t('statusHelpApproved'),
+  REJECTED: t('statusHelpRejected'),
+  SUSPENDED: t('statusHelpSuspended'),
 };
 
 export function usePartners(): { partners: PartnerAccount[] | null; reload: () => Promise<void> } {
@@ -33,28 +34,28 @@ export function HomeScreen() {
   const courier = partners?.find((p) => p.kind === 'COURIER' && p.verificationStatus === 'APPROVED');
 
   return (
-    <Screen title="Flower Man Partner">
-      {!partners ? <Loading /> : partners.length === 0 && <Card><Strong>Welcome!</Strong><Muted>Sell flowers as a shop or independent florist, or deliver as a courier.</Muted></Card>}
+    <Screen title={t('homeTitle')}>
+      {!partners ? <Loading /> : partners.length === 0 && <Card><Strong>{t('homeWelcome')}</Strong><Muted>{t('homeWelcomeBody')}</Muted></Card>}
       {partners?.map((partner) => (
         <Card key={partner.id} onPress={() => navigation.push({ name: 'partner', partnerId: partner.id })}>
-          <Pill label={partner.verificationStatus} />
+          <Pill label={VERIFICATION_STATUS_LABELS[partner.verificationStatus]} />
           <Strong>{partner.displayName}</Strong>
-          <Muted>{partner.kind === 'SHOP' ? 'Flower shop' : partner.kind === 'FREELANCE_SELLER' ? 'Independent florist' : 'Courier'} · {STATUS_HELP[partner.verificationStatus]}</Muted>
+          <Muted>{PARTNER_KIND_LABELS[partner.kind]} · {STATUS_HELP[partner.verificationStatus]}</Muted>
         </Card>
       ))}
       {seller && (
         <Card>
           <Strong>{seller.displayName}</Strong>
           <View style={{ gap: 8 }}>
-            <Button title="Orders" onPress={() => navigation.push({ name: 'sellerOrders' })} />
-            <Button kind="secondary" title="Custom bouquet requests" onPress={() => navigation.push({ name: 'requestFeed' })} />
-            <Button kind="secondary" title="Products" onPress={() => navigation.push({ name: 'products' })} />
-            <Button kind="secondary" title="Earnings" onPress={() => navigation.push({ name: 'earnings', mode: 'seller' })} />
+            <Button title={t('homeOrders')} onPress={() => navigation.push({ name: 'sellerOrders' })} />
+            <Button kind="secondary" title={t('homeRequests')} onPress={() => navigation.push({ name: 'requestFeed' })} />
+            <Button kind="secondary" title={t('homeProducts')} onPress={() => navigation.push({ name: 'products' })} />
+            <Button kind="secondary" title={t('earnings')} onPress={() => navigation.push({ name: 'earnings', mode: 'seller' })} />
           </View>
         </Card>
       )}
       {courier && <CourierPanel courier={courier} onChange={reload} />}
-      <Button kind="secondary" title="Apply as shop, florist or courier" onPress={() => navigation.push({ name: 'apply' })} />
+      <Button kind="secondary" title={t('homeApply')} onPress={() => navigation.push({ name: 'apply' })} />
     </Screen>
   );
 }
@@ -63,16 +64,16 @@ function CourierPanel({ courier, onChange }: { courier: PartnerAccount; onChange
   const navigation = useNavigation();
   return (
     <Card>
-      <Strong>Courier · {courier.displayName}</Strong>
+      <Strong>{t('courierPanelTitle', { name: courier.displayName })}</Strong>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Body>{courier.courierAvailable ? 'Available for deliveries' : 'Offline'}</Body>
+        <Body>{courier.courierAvailable ? t('courierAvailable') : t('courierOffline')}</Body>
         <Switch
           value={courier.courierAvailable}
           onValueChange={(available) => void attempt(async () => { await api.request('partner/courier/availability', { method: 'POST', body: { available } }); await onChange(); })}
         />
       </View>
-      <Button title="Delivery jobs" onPress={() => navigation.push({ name: 'courierJobs' })} />
-      <Button kind="secondary" title="Earnings" onPress={() => navigation.push({ name: 'earnings', mode: 'courier' })} />
+      <Button title={t('courierJobsButton')} onPress={() => navigation.push({ name: 'courierJobs' })} />
+      <Button kind="secondary" title={t('earnings')} onPress={() => navigation.push({ name: 'earnings', mode: 'courier' })} />
     </Card>
   );
 }
@@ -86,7 +87,7 @@ export function ApplyScreen() {
   const submit = () =>
     attempt(async () => {
       const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') throw new Error('Location is needed to know which area you serve.');
+      if (permission.status !== 'granted') throw new Error(t('applyLocationNeeded'));
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const created = await api.request<PartnerAccount>('partner/accounts', {
         method: 'POST',
@@ -104,20 +105,20 @@ export function ApplyScreen() {
     });
 
   return (
-    <Screen title="Become a partner" onBack={navigation.back}>
+    <Screen title={t('applyTitle')} onBack={navigation.back}>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {(['FREELANCE_SELLER', 'SHOP', 'COURIER'] as const).map((value) => (
-          <Button key={value} kind={kind === value ? 'primary' : 'secondary'} title={value === 'SHOP' ? 'Shop' : value === 'COURIER' ? 'Courier' : 'Florist'} onPress={() => setKind(value)} />
+          <Button key={value} kind={kind === value ? 'primary' : 'secondary'} title={value === 'SHOP' ? t('applyKindShop') : value === 'COURIER' ? t('applyKindCourier') : t('applyKindFlorist')} onPress={() => setKind(value)} />
         ))}
       </View>
-      <Field label={kind === 'COURIER' ? 'Your name' : 'Shop / brand name'} value={form.displayName} onChangeText={set('displayName')} />
-      {kind === 'SHOP' && <Field label="Company legal name" value={form.legalName} onChangeText={set('legalName')} />}
-      {kind === 'SHOP' && <Field label="VAT number (e.g. IT12345678901)" value={form.vatNumber} onChangeText={set('vatNumber')} autoCapitalize="characters" />}
-      <Field label="Phone" value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
-      {kind !== 'COURIER' && <Field label="Address (where couriers pick up)" value={form.address} onChangeText={set('address')} />}
-      <Field label="About you (optional)" value={form.description} onChangeText={set('description')} multiline />
-      <Muted>Your current location sets the area you serve.</Muted>
-      <Button title="Save application" onPress={submit} />
+      <Field label={kind === 'COURIER' ? t('applyYourName') : t('applyBrandName')} value={form.displayName} onChangeText={set('displayName')} />
+      {kind === 'SHOP' && <Field label={t('applyLegalName')} value={form.legalName} onChangeText={set('legalName')} />}
+      {kind === 'SHOP' && <Field label={t('applyVat')} value={form.vatNumber} onChangeText={set('vatNumber')} autoCapitalize="characters" />}
+      <Field label={t('applyPhone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+      {kind !== 'COURIER' && <Field label={t('applyAddress')} value={form.address} onChangeText={set('address')} />}
+      <Field label={t('applyAbout')} value={form.description} onChangeText={set('description')} multiline />
+      <Muted>{t('applyLocationHint')}</Muted>
+      <Button title={t('applySave')} onPress={submit} />
     </Screen>
   );
 }
@@ -128,15 +129,15 @@ export function PartnerScreen({ partnerId }: { partnerId: string }) {
   useEffect(() => {
     void attempt(async () => setPartner(await api.request<PartnerAccount>(`partner/accounts/${partnerId}`)));
   }, [partnerId]);
-  if (!partner) return <Screen title="Partner" onBack={navigation.back}><Loading /></Screen>;
+  if (!partner) return <Screen title={t('partnerTitle')} onBack={navigation.back}><Loading /></Screen>;
   return (
     <Screen title={partner.displayName} onBack={navigation.back}>
-      <Pill label={partner.verificationStatus} />
+      <Pill label={VERIFICATION_STATUS_LABELS[partner.verificationStatus]} />
       <Body>{STATUS_HELP[partner.verificationStatus]}</Body>
-      {partner.verificationNotes && <Card><Strong>Notes from Flower Man</Strong><Body>{partner.verificationNotes}</Body></Card>}
-      <Muted>{partner.phone} · {partner.address ?? 'no address'}</Muted>
+      {partner.verificationNotes && <Card><Strong>{t('partnerNotes')}</Strong><Body>{partner.verificationNotes}</Body></Card>}
+      <Muted>{partner.phone} · {partner.address ?? t('partnerNoAddress')}</Muted>
       {(partner.verificationStatus === 'DRAFT' || partner.verificationStatus === 'REJECTED') && partner.role === 'OWNER' && (
-        <Button title="Submit for verification" onPress={() => attempt(async () => setPartner(await api.request<PartnerAccount>(`partner/accounts/${partner.id}/submit`, { method: 'POST' })))} />
+        <Button title={t('partnerSubmit')} onPress={() => attempt(async () => setPartner(await api.request<PartnerAccount>(`partner/accounts/${partner.id}/submit`, { method: 'POST' })))} />
       )}
     </Screen>
   );
