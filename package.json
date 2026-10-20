@@ -12,12 +12,13 @@
   "scripts": {
     "build:core": "pnpm --recursive --filter \"./packages/*\" --fail-if-no-match run build",
     "typecheck": "pnpm run build:core && pnpm --recursive run typecheck",
-    "test": "pnpm run build:core && pnpm --recursive run test",
+    "test": "pnpm run build:core && pnpm --recursive run test && node --test \"scripts/*.test.mjs\"",
     "test:integration": "pnpm run build:core && pnpm --recursive run test:integration",
     "dev:api": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run dev",
     "dev:admin": "pnpm run build:core && pnpm --filter @flower-man/admin-web --fail-if-no-match run dev",
     "dev:customer": "pnpm run build:core && pnpm --filter @flower-man/customer-mobile --fail-if-no-match run start:go",
     "dev:partner": "pnpm run build:core && pnpm --filter @flower-man/partner-mobile --fail-if-no-match run start:go",
+    "dev:phone": "node scripts/dev-phone.mjs",
     "build:admin": "pnpm run build:core && pnpm --filter @flower-man/admin-web --fail-if-no-match run build",
     "build:api": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run build",
     "db:up": "docker compose -f infra/compose.yaml up -d --wait",
@@ -28,6 +29,7 @@
     "db:migrate": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate",
     "db:migrate:status": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run db:migrate:status",
     "bootstrap:platform-owner": "pnpm run build:core && pnpm --filter @flower-man/api --fail-if-no-match run bootstrap:platform-owner",
+    "db:seed:demo": "pnpm run bootstrap:platform-owner && pnpm --filter @flower-man/api --fail-if-no-match run db:seed:demo",
     "release:check": "node scripts/release-check.mjs && pnpm run typecheck && pnpm run test",
     "release:production-check": "pnpm run build:api && node scripts/production-check.mjs"
   },
