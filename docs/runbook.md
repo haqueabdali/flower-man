@@ -1,6 +1,6 @@
 # Flower Man runbook
 
-Local setup, mobile builds, deployment, migrations and rollback.
+Local setup, mobile builds, deployment, migrations and rollback. Phone install and test script: [device-test.md](device-test.md).
 
 ## 1. Local development (Windows, Git Bash)
 
