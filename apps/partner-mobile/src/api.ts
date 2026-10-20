@@ -1,6 +1,8 @@
 import { createApiClient, type SessionStore, type StoredSession } from '@flower-man/api-client';
 import * as SecureStore from 'expo-secure-store';
 
+import { language } from './i18n';
+
 const KEY = 'flowerman.partner.session';
 
 export const secureStore: SessionStore = {
@@ -17,4 +19,4 @@ export const secureStore: SessionStore = {
 };
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
-export const api = createApiClient(API_URL, secureStore);
+export const api = createApiClient(API_URL, secureStore, { language });

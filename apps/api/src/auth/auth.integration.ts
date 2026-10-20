@@ -137,6 +137,14 @@ describe('POST /auth/login', () => {
     assert.equal((await errorOf(wrongPassword)).message, (await errorOf(unknownEmail)).message);
   });
 
+  it('answers in Italian when the app asks for it (Accept-Language)', async () => {
+    const italian = (body: unknown) =>
+      fetch(`${baseUrl}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept-Language': 'it-IT,it;q=0.9' }, body: JSON.stringify(body) });
+    assert.equal((await errorOf(await italian({ email: uniqueEmail('nobody'), password: PASSWORD }))).message, 'Email o password non corretti.');
+    assert.equal((await errorOf(await italian({ email: 'x' }))).message.includes('Inserisci un indirizzo email valido.'), true);
+    assert.equal((await errorOf(await post('/auth/login', { email: uniqueEmail('nobody'), password: PASSWORD }))).message, 'Invalid email or password.');
+  });
+
   it('refuses suspended accounts and ends their existing sessions', async () => {
     const email = uniqueEmail('suspended');
     const tokens = await register(email);

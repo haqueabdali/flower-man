@@ -12,6 +12,8 @@ export class ZodBodyPipe<TSchema extends z.ZodType> implements PipeTransform<unk
         message: result.error.issues.map((issue) =>
           issue.path.length > 0 ? `${issue.path.join('.')}: ${issue.message}` : issue.message,
         ),
+        // Kept for the exception filter, which renders them in the client's language.
+        issues: result.error.issues,
       });
     }
     return result.data;

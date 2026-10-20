@@ -335,3 +335,12 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - Public reviews (`GET /catalog/sellers/:id/reviews`) carry only rating, comment and date: no customer data.
 - Moderation: admins hide abusive reviews (`POST /admin/reviews/:orderId/hide`, audited). A hidden review leaves the public
   list and the totals but is kept. The florist is notified of each new review.
+
+## ADR-020: Italian API error messages
+
+- The apps send `Accept-Language` (their UI language). When its first choice is Italian, the API error filter translates the
+  message (`apps/api/src/common/messages-it.ts`: exact texts plus patterns for messages built with values); otherwise English.
+- Validation errors keep the raw Zod issues: Zod's built-in Italian locale renders standard problems, and custom contract
+  messages use the same dictionary.
+- `messages-it.test.ts` scans the API and contract sources: any client-facing message without an Italian translation fails
+  `pnpm test` (and so CI).

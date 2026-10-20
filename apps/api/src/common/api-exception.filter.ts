@@ -2,7 +2,9 @@ import type { ApiErrorCode, ApiErrorResponse } from '@flower-man/contracts';
 import { TransitionError } from '@flower-man/domain';
 import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { locales, type core } from 'zod';
 
+import { translateToItalian } from './messages-it.js';
 import { getRequestId } from './request-context.js';
 
 const CODES: Readonly<Partial<Record<number, ApiErrorCode>>> = {
@@ -27,6 +29,44 @@ export interface DescribedError {
   readonly status: number;
   readonly code: ApiErrorCode;
   readonly message: string;
+}
+
+/** The client's language from Accept-Language: Italian when its first choice is Italian. */
+export function wantsItalian(acceptLanguage: string | undefined): boolean {
+  return /^\s*it(-|;|,|\s|$)/i.test(acceptLanguage ?? '');
+}
+
+const zodEnglish = locales.en().localeError;
+const zodItalian = locales.it().localeError;
+const localeText = (render: typeof zodEnglish, issue: core.$ZodRawIssue): string | undefined => {
+  const result = render?.(issue);
+  return typeof result === 'string' ? result : result?.message;
+};
+
+/** Validation issues (ZodBodyPipe) in Italian: Zod's own Italian texts, or our dictionary for custom messages. */
+function italianIssues(issues: readonly core.$ZodIssue[]): string {
+  return issues
+    .map((issue) => {
+      const raw = issue as unknown as core.$ZodRawIssue;
+      const custom = localeText(zodEnglish, raw) !== issue.message;
+      const text = custom ? translateToItalian(issue.message) : (localeText(zodItalian, raw) ?? issue.message);
+      return issue.path.length > 0 ? `${issue.path.join('.')}: ${text}` : text;
+    })
+    .join('; ');
+}
+
+function validationIssues(exception: unknown): readonly core.$ZodIssue[] | null {
+  if (!(exception instanceof HttpException)) return null;
+  const response = exception.getResponse();
+  const issues = typeof response === 'object' && response !== null ? (response as Record<string, unknown>)['issues'] : undefined;
+  return Array.isArray(issues) ? (issues as core.$ZodIssue[]) : null;
+}
+
+/** The message in the client's language (Italian or the original English). */
+export function localizeError(exception: unknown, message: string, acceptLanguage: string | undefined): string {
+  if (!wantsItalian(acceptLanguage)) return message;
+  const issues = validationIssues(exception);
+  return issues ? italianIssues(issues) : translateToItalian(message);
 }
 
 /** Errors from Express middleware (e.g. body-parser) follow the http-errors shape. */
@@ -91,7 +131,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
     const requestId = getRequestId(response);
-    const { status, code, message } = describeError(exception);
+    const described = describeError(exception);
+    const { status, code } = described;
+    const message = localizeError(exception, described.message, request.headers['accept-language']);
 
     if (status >= 500) {
       const detail = exception instanceof Error ? (exception.stack ?? exception.message) : String(exception);

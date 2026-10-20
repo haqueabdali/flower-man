@@ -58,9 +58,15 @@ export interface ApiClient {
   onSignedOut(listener: () => void): () => void;
 }
 
-export function createApiClient(apiUrl: string, store: SessionStore): ApiClient {
+export interface ApiClientOptions {
+  /** Sent as Accept-Language: the API answers error messages in this language (it or en). */
+  readonly language?: string;
+}
+
+export function createApiClient(apiUrl: string, store: SessionStore, options: ApiClientOptions = {}): ApiClient {
   const baseUrl = `${apiUrl.replace(/\/$/, '')}/${API_GLOBAL_PREFIX}/${API_VERSION}`;
   const listeners = new Set<() => void>();
+  const { language } = options;
   let refreshing: Promise<StoredSession | null> | null = null;
 
   const signedOut = async () => {
@@ -96,7 +102,7 @@ export function createApiClient(apiUrl: string, store: SessionStore): ApiClient 
   };
 
   async function send(path: string, options: RequestOptions, token: string | null): Promise<Response> {
-    const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
+    const headers: Record<string, string> = { Accept: 'application/json', ...(language ? { 'Accept-Language': language } : {}), ...options.headers };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     let body: BodyInit | undefined;
     if (options.binary) {
