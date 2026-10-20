@@ -32,12 +32,13 @@ export async function createApp(config: AppConfig): Promise<NestExpressApplicati
   app.use(requestContext);
   app.use(helmet());
   // Raw bodies where they are needed (registered before the JSON parser, which then skips them):
-  // the Stripe webhook signature is computed over the exact bytes; proof photos are binary uploads.
+  // the Stripe webhook signature is computed over the exact bytes; proof and product photos are binary uploads.
   app.use(`/${API_PREFIX}/payments/stripe/webhook`, express.raw({ type: '*/*', limit: '1mb' }));
   app.use(
     `/${API_PREFIX}/courier/deliveries/:id/proof`,
     express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '8mb' }),
   );
+  app.use(`/${API_PREFIX}/seller/products/:id/image`, express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '5mb' }));
   app.useBodyParser('json', { limit: '100kb' });
   app.enableCors({
     // false = no CORS headers at all: browsers on other origins are refused.

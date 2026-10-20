@@ -3,7 +3,7 @@ import 'reflect-metadata';
 
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -509,3 +509,35 @@ describe('platform owner bootstrap', () => {
     await assert.rejects(run(process.execPath, [cli], { env: { ...env, PLATFORM_OWNER_PASSWORD: 'short' } }));
   });
 });
+
+describe('product photos', () => {
+  it('lets the seller upload a photo that anyone can load, and checks the bytes', async () => {
+    const upload = (who: Client, productId: string, body: Buffer, type = 'image/jpeg') =>
+      who.raw('PUT', `/seller/products/${productId}/image`, body, { 'Content-Type': type });
+
+    // Text pretending to be a JPEG is refused; so is another seller's product.
+    assert.equal((await upload(shop.user, rose.id, Buffer.from('not an image'))).status, 400);
+    assert.equal((await upload(freelancer.user, rose.id, JPEG)).status, 404);
+
+    const response = await upload(shop.user, rose.id, JPEG);
+    assert.equal(response.status, 200, await response.clone().text());
+    const updated = (await response.json()) as Product;
+    assert.match(updated.imagePath ?? '', new RegExp(`^catalog/products/${rose.id}/image\\?v=\\d+$`));
+
+    // Public, typed from the bytes, cacheable per version.
+    const image = await fetch(`${base}/${updated.imagePath}`);
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get('content-type'), 'image/jpeg');
+    assert.match(image.headers.get('cache-control') ?? '', /immutable/);
+    assert.deepEqual(Buffer.from(await image.arrayBuffer()), JPEG);
+
+    // A new photo gets a new version; the catalogue shows it.
+    await new Promise((r) => setTimeout(r, 5));
+    const second = (await (await upload(shop.user, rose.id, JPEG)).json()) as Product;
+    assert.notEqual(second.imagePath, updated.imagePath);
+    const listed = await shop.user.get<{ items: Product[] }>('/seller/products');
+    assert.equal(listed.items.find((p) => p.id === rose.id)?.imagePath, second.imagePath);
+    assert.equal((await fetch(`${base}/catalog/products/${randomUUID()}/image`)).status, 404);
+  });
+});
+

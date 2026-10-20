@@ -133,6 +133,8 @@ export interface Product {
   readonly available: boolean;
   readonly stock: number | null;
   readonly imageUrl: string | null;
+  /** Uploaded photo, relative to the API base URL (`${client.baseUrl}/${imagePath}`); changes when the photo changes. */
+  readonly imagePath: string | null;
   readonly distanceMeters?: number;
 }
 

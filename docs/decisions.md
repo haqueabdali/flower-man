@@ -305,3 +305,14 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   - Admin: the Next.js standalone server.
   - Both run as the non-root `node` user and take configuration only from environment variables. `.dockerignore` keeps
     `.env` files, local storage and build output out of the build context.
+
+## ADR-017: Product photos
+
+- Sellers upload one photo per product: `PUT /seller/products/:id/image` with the raw bytes (JPEG, PNG or WebP, max 5 MB).
+  The type is detected from the magic bytes, never trusted from `Content-Type`. Only the owning seller can upload.
+- Photos live in object storage (`product-images/<productId>/<uuid>.<ext>`, same driver as proof photos); the database keeps
+  only the key, type and update time (migration 0014).
+- `Product.imagePath` is relative to the API base (`catalog/products/:id/image?v=<timestamp>`). The image endpoint is public
+  like the catalogue, served with `Cache-Control: immutable` (the version changes with every new photo) and a `default-src 'none'` CSP.
+- The partner app crops photos square and compresses them before upload (camera or gallery). The customer app shows a
+  placeholder when a product has no photo. Replaced photos stay in storage (no deletion yet).

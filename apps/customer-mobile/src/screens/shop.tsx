@@ -1,4 +1,4 @@
-import { formatPrice } from '@flower-man/api-client';
+import { formatPrice, productImageUri } from '@flower-man/api-client';
 import { type Cart, PRODUCT_CATEGORIES, type Product, type ZoneCheckResponse } from '@flower-man/contracts';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
@@ -52,7 +52,7 @@ export function ShopScreen({ emailVerified }: { emailVerified: boolean }) {
       {products === null ? <Loading /> : products.length === 0 && zone?.served ? <Muted>No flowers available right now.</Muted> : null}
       {products?.map((product) => (
         <Card key={product.id} onPress={() => navigation.push({ name: 'product', product })}>
-          {product.imageUrl && <Image source={{ uri: product.imageUrl }} style={{ height: 160, borderRadius: 8 }} />}
+          <ProductPhoto product={product} height={160} />
           <Strong>{product.name}</Strong>
           <Muted>{product.sellerName}{product.distanceMeters !== undefined ? ` · ${(product.distanceMeters / 1000).toFixed(1)} km` : ''}</Muted>
           <Body>{formatPrice(product.priceMinor)}</Body>
@@ -64,6 +64,18 @@ export function ShopScreen({ emailVerified }: { emailVerified: boolean }) {
       </Card>
     </Screen>
   );
+}
+
+function ProductPhoto({ product, height }: { product: Product; height: number }) {
+  const uri = productImageUri(api, product);
+  if (!uri) {
+    return (
+      <View style={{ height: height / 2, borderRadius: 8, backgroundColor: '#fbeef3', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 40 }}>💐</Text>
+      </View>
+    );
+  }
+  return <Image source={{ uri }} style={{ height, borderRadius: 8 }} resizeMode="cover" accessibilityLabel={product.name} />;
 }
 
 function VerifyEmailBanner() {
@@ -85,7 +97,7 @@ export function ProductScreen({ product }: { product: Product }) {
   const [quantity, setQuantity] = useState(1);
   return (
     <Screen title={product.name} onBack={navigation.back}>
-      {product.imageUrl && <Image source={{ uri: product.imageUrl }} style={{ height: 240, borderRadius: 12 }} />}
+      <ProductPhoto product={product} height={240} />
       <Pill label={product.category} />
       <Strong>{formatPrice(product.priceMinor)}</Strong>
       <Muted>by {product.sellerName} ({product.sellerKind === 'SHOP' ? 'flower shop' : 'independent florist'})</Muted>

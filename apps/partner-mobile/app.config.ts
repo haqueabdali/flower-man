@@ -42,7 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         isIosBackgroundLocationEnabled: true,
       },
     ],
-    ['expo-image-picker', { cameraPermission: 'Flower Man Partner uses the camera for proof of delivery photos.', photosPermission: false }],
+    ['expo-image-picker', { cameraPermission: 'Flower Man Partner uses the camera for proof of delivery photos and product photos.', photosPermission: 'Flower Man Partner lets you choose product photos from your gallery.' }],
     ['expo-notifications', { color: '#b5446e' }],
   ],
   extra: {

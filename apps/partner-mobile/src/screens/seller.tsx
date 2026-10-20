@@ -1,7 +1,8 @@
-import { formatPrice } from '@flower-man/api-client';
+import { formatPrice, productImageUri } from '@flower-man/api-client';
 import { type CustomOffer, type CustomRequestView, type OrderDetail, type OrderSummary, PRODUCT_CATEGORIES, type Product } from '@flower-man/contracts';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Switch, View } from 'react-native';
+import { Alert, Image, Switch, View } from 'react-native';
 
 import { api } from '../api';
 import { useNavigation } from '../navigation';
@@ -78,6 +79,7 @@ export function ProductsScreen() {
       {!products ? <Loading /> : products.length === 0 && <Muted>Add your first bouquet.</Muted>}
       {products?.map((product) => (
         <Card key={product.id} onPress={() => navigation.push({ name: 'productEdit', product })}>
+          {productImageUri(api, product) && <Image source={{ uri: productImageUri(api, product) as string }} style={{ height: 120, borderRadius: 8 }} resizeMode="cover" />}
           <Strong>{product.name} · {formatPrice(product.priceMinor)}</Strong>
           <Muted>{product.available ? 'Available' : 'Hidden'} · {product.stock === null ? 'made to order' : `${product.stock} in stock`}</Muted>
         </Card>
@@ -105,9 +107,15 @@ export function ProductEditScreen({ product }: { product: Product | null }) {
         available,
         stock: stock.trim() === '' ? null : Number(stock),
       };
-      if (product) await api.request(`seller/products/${product.id}`, { method: 'PATCH', body });
-      else await api.request('seller/products', { method: 'POST', body });
-      navigation.reset({ name: 'products' });
+      if (product) {
+        await api.request(`seller/products/${product.id}`, { method: 'PATCH', body });
+        navigation.reset({ name: 'products' });
+      } else {
+        // New products open again in edit mode, where the photo can be added.
+        const created = await api.request<Product>('seller/products', { method: 'POST', body });
+        navigation.reset({ name: 'products' });
+        navigation.push({ name: 'productEdit', product: created });
+      }
     });
 
   return (
@@ -123,9 +131,48 @@ export function ProductEditScreen({ product }: { product: Product | null }) {
         <Body>Visible to customers</Body>
         <Switch value={available} onValueChange={setAvailable} />
       </View>
+      {product && <ProductPhotoEditor product={product} />}
       <Button title="Save" onPress={save} />
       {product && <Button kind="danger" title="Archive" onPress={() => attempt(async () => { await api.request(`seller/products/${product.id}`, { method: 'DELETE' }); navigation.reset({ name: 'products' }); })} />}
     </Screen>
+  );
+}
+
+/** Photo from the camera or the gallery, cropped square and compressed before upload (max 5 MB on the API). */
+function ProductPhotoEditor({ product }: { product: Product }) {
+  const [current, setCurrent] = useState(product);
+  const [busy, setBusy] = useState(false);
+  const uri = productImageUri(api, current);
+
+  const pick = (source: 'camera' | 'gallery') =>
+    attempt(async () => {
+      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, exif: false };
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) throw new Error('Camera permission is needed to take the photo.');
+      }
+      const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+      const asset = result.canceled ? undefined : result.assets[0];
+      if (!asset) return;
+      setBusy(true);
+      try {
+        const blob = await (await fetch(asset.uri)).blob();
+        setCurrent(await api.request<Product>(`seller/products/${product.id}/image`, { method: 'PUT', binary: { data: blob, contentType: asset.mimeType ?? 'image/jpeg' } }));
+      } finally {
+        setBusy(false);
+      }
+    });
+
+  return (
+    <Card>
+      <Strong>Photo</Strong>
+      {uri ? <Image source={{ uri }} style={{ height: 200, borderRadius: 8 }} resizeMode="cover" /> : <Muted>Products with a photo sell much better.</Muted>}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Button kind="secondary" title="Take photo" disabled={busy} onPress={() => pick('camera')} />
+        <Button kind="secondary" title="From gallery" disabled={busy} onPress={() => pick('gallery')} />
+      </View>
+      {busy && <Muted>Uploading…</Muted>}
+    </Card>
   );
 }
 
