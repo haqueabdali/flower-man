@@ -224,6 +224,19 @@ const en = {
   remindersNext: 'Next: {date} · reminder {days} days before',
   remindersBadDate: 'Write the date as day/month, e.g. 14/02.',
   remindersDelete: 'Delete',
+  supportTitle: 'Help & support',
+  supportNew: 'Write to us',
+  supportSubject: 'Subject',
+  supportMessage: 'Message',
+  supportSend: 'Send',
+  supportEmpty: 'No conversations yet. We usually answer within a few hours.',
+  supportReply: 'Your reply',
+  supportTeam: 'Flower Man team',
+  supportYou: 'You',
+  supportStatusOpen: 'Waiting for the team',
+  supportStatusAnswered: 'Answered',
+  supportStatusClosed: 'Closed',
+  orderHelp: 'Get help with this order',
 } as const;
 
 type Key = keyof typeof en;
@@ -439,6 +452,19 @@ const it: { [K in Key]: string } = {
   remindersNext: 'Prossima: {date} · avviso {days} giorni prima',
   remindersBadDate: 'Scrivi la data come giorno/mese, es. 14/02.',
   remindersDelete: 'Elimina',
+  supportTitle: 'Assistenza',
+  supportNew: 'Scrivici',
+  supportSubject: 'Oggetto',
+  supportMessage: 'Messaggio',
+  supportSend: 'Invia',
+  supportEmpty: 'Nessuna conversazione. Di solito rispondiamo entro poche ore.',
+  supportReply: 'La tua risposta',
+  supportTeam: 'Team Flower Man',
+  supportYou: 'Tu',
+  supportStatusOpen: 'In attesa del team',
+  supportStatusAnswered: 'Risposta ricevuta',
+  supportStatusClosed: 'Chiusa',
+  orderHelp: 'Assistenza per questo ordine',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

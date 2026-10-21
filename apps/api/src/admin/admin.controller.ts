@@ -9,6 +9,10 @@ import {
   createZoneSchema,
   featurePartnerSchema,
   type AdminReview,
+  type AdminSupportTicket,
+  SUPPORT_STATUSES,
+  supportMessageSchema,
+  type SupportStatus,
   ANALYTICS_PERIODS,
   type CustomRequestView,
   type MarketplaceAnalytics,
@@ -50,6 +54,7 @@ import { listOrders, loadOrderDetail } from '../orders/order-views.js';
 import { PartnersService } from '../partners/partners.service.js';
 import { PaymentsService } from '../payments/payments.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
+import { SupportService } from '../support/support.service.js';
 import { ZonesService } from '../zones/zones.service.js';
 import { AdminService } from './admin.service.js';
 
@@ -72,6 +77,7 @@ export class AdminController {
     private readonly ledger: LedgerService,
     private readonly reviews: ReviewsService,
     private readonly promos: PromoService,
+    private readonly support: SupportService,
   ) {}
 
   @Get('analytics')
@@ -196,6 +202,27 @@ export class AdminController {
     response.setHeader('Content-Type', contentType);
     response.setHeader('Cache-Control', 'private, no-store');
     response.send(bytes);
+  }
+
+  @Get('support')
+  async supportList(@Query('status') status?: string): Promise<{ items: AdminSupportTicket[] }> {
+    const filter = optionalText(status);
+    if (filter && !(SUPPORT_STATUSES as readonly string[]).includes(filter)) {
+      throw new BadRequestException('Unknown status.');
+    }
+    return { items: await this.support.listForAdmin(filter as SupportStatus | undefined) };
+  }
+
+  @Post('support/:id/reply')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async supportReply(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string, @Body(new ZodBodyPipe(supportMessageSchema)) body: { body: string }): Promise<void> {
+    await this.support.teamReply(auth.userId, id, body.body);
+  }
+
+  @Post('support/:id/close')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async supportClose(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string): Promise<void> {
+    await this.support.close(auth.userId, id);
   }
 
   @Get('promo-codes')

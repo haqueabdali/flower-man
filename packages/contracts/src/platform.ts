@@ -197,6 +197,40 @@ export interface OccasionReminder {
 
 export const MAX_REMINDERS = 20;
 
+// ---------------------------------------------------------------- help & support
+export const SUPPORT_STATUSES = ['OPEN', 'ANSWERED', 'CLOSED'] as const;
+export type SupportStatus = (typeof SUPPORT_STATUSES)[number];
+export const MAX_OPEN_TICKETS = 5;
+
+export const createTicketSchema = z.strictObject({
+  subject: z.string().trim().min(3).max(120),
+  body: z.string().trim().min(1).max(2000),
+  orderId: z.uuid().optional(),
+});
+export type CreateTicketRequest = z.infer<typeof createTicketSchema>;
+export const supportMessageSchema = z.strictObject({ body: z.string().trim().min(1).max(2000) });
+
+export interface SupportMessage {
+  readonly author: 'USER' | 'TEAM';
+  readonly body: string;
+  readonly createdAt: string;
+}
+
+export interface SupportTicket {
+  readonly id: string;
+  readonly subject: string;
+  readonly status: SupportStatus;
+  readonly orderNumber: number | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly messages: readonly SupportMessage[];
+}
+
+export interface AdminSupportTicket extends SupportTicket {
+  readonly userEmail: string;
+  readonly userName: string;
+}
+
 /** A florist the customer saved. Only approved sellers are listed. */
 export interface FavouriteSeller {
   readonly id: string;

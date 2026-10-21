@@ -17,6 +17,8 @@ export type Route =
   | { name: 'earnings'; mode: 'seller' | 'courier' }
   | { name: 'inbox' }
   | { name: 'account' }
+  | { name: 'support'; orderId?: string }
+  | { name: 'supportTicket'; ticketId: string }
   | { name: 'verifyEmail'; token: string }
   | { name: 'resetPassword'; token: string };
 

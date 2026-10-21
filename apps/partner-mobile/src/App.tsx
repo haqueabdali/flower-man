@@ -9,6 +9,7 @@ import { api } from './api';
 import { language, t } from './i18n';
 import { NavigationContext, type Navigator, type Route } from './navigation';
 import { registerForPush } from './push';
+import { SupportScreen, SupportTicketScreen } from './screens/support';
 import { AccountScreen, InboxScreen } from './screens/account';
 import { AuthScreen, ResetPasswordScreen, VerifyEmailScreen } from './screens/auth';
 import { CourierJobScreen, CourierJobsScreen, EarningsScreen } from './screens/courier';
@@ -125,6 +126,8 @@ function renderRoute(route: Route, user: AuthUser, onSignedOut: () => void): Rea
     case 'earnings': return <EarningsScreen mode={route.mode} />;
     case 'inbox': return <InboxScreen />;
     case 'account': return <AccountScreen user={user} onSignedOut={onSignedOut} />;
+    case 'support': return <SupportScreen {...(route.orderId ? { orderId: route.orderId } : {})} />;
+    case 'supportTicket': return <SupportTicketScreen ticketId={route.ticketId} />;
     case 'verifyEmail':
     case 'resetPassword':
       return null;

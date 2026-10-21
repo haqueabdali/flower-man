@@ -207,6 +207,18 @@ const en = {
   jobTip: '+ {price} tip',
   accountExport: 'Email me a copy of my data',
   accountExportSent: 'We sent a copy of your data to your email.',
+  supportTitle: 'Help & support',
+  supportNew: 'Write to us',
+  supportSubject: 'Subject',
+  supportMessage: 'Message',
+  supportSend: 'Send',
+  supportEmpty: 'No conversations yet. We usually answer within a few hours.',
+  supportReply: 'Your reply',
+  supportTeam: 'Flower Man team',
+  supportYou: 'You',
+  supportStatusOpen: 'Waiting for the team',
+  supportStatusAnswered: 'Answered',
+  supportStatusClosed: 'Closed',
 } as const;
 
 type Key = keyof typeof en;
@@ -408,6 +420,18 @@ const it: { [K in Key]: string } = {
   jobTip: '+ {price} di mancia',
   accountExport: 'Inviami una copia dei miei dati',
   accountExportSent: 'Ti abbiamo inviato una copia dei tuoi dati via email.',
+  supportTitle: 'Assistenza',
+  supportNew: 'Scrivici',
+  supportSubject: 'Oggetto',
+  supportMessage: 'Messaggio',
+  supportSend: 'Invia',
+  supportEmpty: 'Nessuna conversazione. Di solito rispondiamo entro poche ore.',
+  supportReply: 'La tua risposta',
+  supportTeam: 'Team Flower Man',
+  supportYou: 'Tu',
+  supportStatusOpen: 'In attesa del team',
+  supportStatusAnswered: 'Risposta ricevuta',
+  supportStatusClosed: 'Chiusa',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

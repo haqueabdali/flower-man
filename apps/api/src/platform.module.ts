@@ -24,6 +24,8 @@ import { createPaymentProvider, createStripeClient, PAYMENT_PROVIDER } from './p
 import { PaymentsController } from './payments/payments.controller.js';
 import { STRIPE_CLIENT } from './payments/payments.module-tokens.js';
 import { PaymentsService } from './payments/payments.service.js';
+import { SupportController } from './support/support.controller.js';
+import { SupportService } from './support/support.service.js';
 import { StatementsService } from './ledger/statements.service.js';
 import { RemindersService } from './me/reminders.service.js';
 import { ReceiptsService } from './orders/receipts.service.js';
@@ -50,6 +52,7 @@ import { ZonesService } from './zones/zones.service.js';
     NotificationsController,
     MeController,
     AdminController,
+    SupportController,
   ],
   providers: [
     ZonesService,
@@ -68,6 +71,7 @@ import { ZonesService } from './zones/zones.service.js';
     ReceiptsService,
     RemindersService,
     StatementsService,
+    SupportService,
     DataExportService,
     { provide: PAYMENT_PROVIDER, inject: [APP_CONFIG], useFactory: (config: AppConfig) => createPaymentProvider(config.payments) },
     { provide: STRIPE_CLIENT, inject: [APP_CONFIG], useFactory: (config: AppConfig) => createStripeClient(config.payments) },

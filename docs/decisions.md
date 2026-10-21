@@ -428,3 +428,12 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - `ALERT_WEBHOOK_URL` (optional; checked by `release:production-check`) receives `{ "text": … }` alerts for HTTP 500 errors
   (method, route pattern, error name, request ID — never bodies, queries or user data) and failed maintenance runs,
   throttled to one per problem every 5 minutes and 20 per hour. External uptime monitoring uses `/api/v1/health`.
+
+## ADR-030: Help & support
+
+- Any signed-in user (customer or partner) can open a conversation from the app ("Help & support"; customers can also start
+  one from an order). Tables `support_tickets` / `support_messages` (migration 0024). At most 5 open conversations per user,
+  enforced with the user row locked.
+- Status: OPEN (waiting for the team) → ANSWERED (team replied) → CLOSED; a new user message reopens it.
+- The admin "Help & support" inbox lists open conversations oldest first; a reply is stored, audited, pushed to the user's
+  inbox and emailed. Users only ever see their own conversations, without the identity fields the team sees.

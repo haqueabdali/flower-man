@@ -834,3 +834,33 @@ describe('monthly statements', () => {
     assert.match(statements[0]?.text ?? '', /Guadagno netto del mese: 12,34 €/);
   });
 });
+
+describe('help & support', () => {
+  it('lets a user ask, the team answer (notified + emailed), and keeps conversations private', async () => {
+    const mailbox = app.get<MemoryMailer>(MAILER);
+    const user = await signUp('support');
+    const email = (await user.get<{ user: { email: string } }>('/auth/me')).user.email;
+    await user.post('/support/tickets', { subject: 'Wrong address', body: 'Hi', orderId: randomUUID() }, 404);
+    const ticket = await user.post<{ id: string; status: string; messages: unknown[] }>('/support/tickets', { subject: 'Wrong address', body: 'I typed the wrong street, can you help?' }, 201);
+    assert.equal(ticket.status, 'OPEN');
+    assert.equal('userEmail' in ticket, false);
+    await (await signUp('support-other')).get(`/support/tickets/${ticket.id}`, 404);
+
+    const inbox = await admin.get<{ items: { id: string; userEmail: string }[] }>('/admin/support?status=OPEN');
+    assert.equal(inbox.items.find((t) => t.id === ticket.id)?.userEmail, email);
+    await admin.post(`/admin/support/${ticket.id}/reply`, { body: 'Done: we updated the address.' }, 204);
+    const answered = await user.get<{ status: string; messages: { author: string; body: string }[] }>(`/support/tickets/${ticket.id}`);
+    assert.equal(answered.status, 'ANSWERED');
+    assert.deepEqual(answered.messages.map((m) => m.author), ['USER', 'TEAM']);
+    assert.ok(mailbox.sent.some((m) => m.to === email && m.text.startsWith('Done: we updated the address.')));
+    assert.ok((await user.get<{ items: { type: string }[] }>('/me/notifications')).items.some((n) => n.type === 'SUPPORT_REPLY'));
+
+    await admin.post(`/admin/support/${ticket.id}/close`, {}, 204);
+    const reopened = await user.post<{ status: string }>(`/support/tickets/${ticket.id}/messages`, { body: 'Thanks! One more thing…' }, 201);
+    assert.equal(reopened.status, 'OPEN');
+
+    // At most 5 open conversations per user.
+    for (let i = 0; i < 4; i += 1) await user.post('/support/tickets', { subject: `Question ${i}`, body: 'x' }, 201);
+    await user.post('/support/tickets', { subject: 'One too many', body: 'x' }, 409);
+  });
+});

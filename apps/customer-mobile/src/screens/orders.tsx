@@ -79,6 +79,7 @@ export function OrderScreen({ orderId }: { orderId: string }) {
         </Card>
       )}
       {order.canReview && <ReviewCard order={order} onDone={setOrder} />}
+      <Button kind="secondary" title={`💬 ${t('orderHelp')}`} onPress={() => navigation.push({ name: 'support', orderId: order.id })} />
       {order.status !== 'PENDING_PAYMENT' && (
         <Button
           kind="secondary"

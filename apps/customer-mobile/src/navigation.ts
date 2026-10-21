@@ -14,6 +14,8 @@ export type Route =
   | { name: 'request'; requestId: string }
   | { name: 'inbox' }
   | { name: 'account' }
+  | { name: 'support'; orderId?: string }
+  | { name: 'supportTicket'; ticketId: string }
   | { name: 'reminders' }
   | { name: 'verifyEmail'; token: string }
   | { name: 'resetPassword'; token: string };

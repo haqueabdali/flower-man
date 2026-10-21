@@ -114,6 +114,7 @@ const EXACT: Readonly<Record<string, string>> = {
   'This order had no courier to rate.': 'Questo ordine non aveva un corriere da valutare.',
   'This order has already been reviewed.': 'Hai già recensito questo ordine.',
   'Review not found.': 'Recensione non trovata.',
+  'Conversation not found.': 'Conversazione non trovata.',
   'Reminder not found.': 'Promemoria non trovato.',
   'This date does not exist.': 'Questa data non esiste.',
   // admin
@@ -152,6 +153,7 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, (...groups: string[]) => string]
   [/^category must be one of (.+)\.$/, (list) => `La categoria deve essere una tra: ${list}.`],
   [/^This code needs a minimum order of €([\d.]+)\.$/, (amount) => `Questo codice richiede un ordine minimo di ${amount.replace('.', ',')} €.`],
   [/^You can save up to (\d+) occasions\.$/, (n) => `Puoi salvare fino a ${n} ricorrenze.`],
+  [/^You already have (\d+) open conversations\. Reply in one of them\.$/, (n) => `Hai già ${n} conversazioni aperte. Rispondi in una di queste.`],
   [/^days must be one of (.+)\.$/, (list) => `Il periodo deve essere uno tra: ${list} giorni.`],
   // Domain state machine (TransitionError).
   [/^(\w+) cannot go from (\w+) to (\w+) \(requested by \w+\)\.$/, (_name, from, to) => `Operazione non possibile: da "${status(from)}" a "${status(to)}".`],

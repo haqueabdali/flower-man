@@ -4,6 +4,7 @@ import { Alert, Linking } from 'react-native';
 
 import { api } from '../api';
 import { locale, t } from '../i18n';
+import { useNavigation } from '../navigation';
 import { attempt, Body, Button, Card, Loading, Muted, Screen, Strong } from '../ui';
 
 export function InboxScreen() {
@@ -26,6 +27,7 @@ export function InboxScreen() {
 }
 
 export function AccountScreen({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
+  const navigation = useNavigation();
   const privacy = process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL;
   const terms = process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL;
   return (
@@ -37,6 +39,7 @@ export function AccountScreen({ user, onSignedOut }: { user: AuthUser; onSignedO
       </Card>
       {privacy && <Button kind="secondary" title={t('accountPrivacy')} onPress={() => void Linking.openURL(privacy)} />}
       {terms && <Button kind="secondary" title={t('accountTerms')} onPress={() => void Linking.openURL(terms)} />}
+      <Button kind="secondary" title={`💬 ${t('supportTitle')}`} onPress={() => navigation.push({ name: 'support' })} />
       <Button kind="secondary" title={t('accountExport')} onPress={() => attempt(async () => { await api.request('me/data-export', { method: 'POST' }); Alert.alert(t('appName'), t('accountExportSent')); })} />
       <Button kind="secondary" title={t('accountSignOut')} onPress={() => attempt(async () => { await api.signOut(); onSignedOut(); })} />
       <Button
