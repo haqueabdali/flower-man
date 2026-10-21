@@ -17,6 +17,7 @@ export function assertSettlementTransition(from: SettlementStatus, to: Settlemen
 export const LEDGER_ENTRY_TYPES = [
   'ORDER_REVENUE',
   'DELIVERY_FEE',
+  'COURIER_TIP',
   'PLATFORM_COMMISSION',
   'REFUND_ADJUSTMENT',
   'PAYOUT_ADJUSTMENT',

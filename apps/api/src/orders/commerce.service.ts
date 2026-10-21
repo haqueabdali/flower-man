@@ -276,7 +276,8 @@ export class CommerceService {
         this.config.commerce.commissionBasisPoints,
       );
       const promo = input.promoCode ? await this.promos.evaluate(client, auth.userId, input.promoCode, amounts, true) : null;
-      const total = amounts.total - (promo?.discountMinor ?? 0);
+      const tip = input.tipMinor ?? 0;
+      const total = amounts.total - (promo?.discountMinor ?? 0) + tip;
       if (input.expectedTotalMinor !== undefined && input.expectedTotalMinor !== total) {
         throw new ConflictException(`Prices changed: the total is now €${(total / 100).toFixed(2)}. Please review your cart.`);
       }
@@ -284,12 +285,12 @@ export class CommerceService {
       const order = await client.query<{ id: string }>(
         `INSERT INTO orders (customer_id, seller_id, source, subtotal_minor, delivery_fee_minor, total_minor, platform_commission_minor,
                              recipient_name, recipient_phone, delivery_address, delivery_location, service_zone_id,
-                             delivery_notes, gift_message, requested_delivery_at, discount_minor)
-         VALUES ($1, $2, 'CATALOG', $3, $4, $5, $6, $7, $8, $9, ${pointSql(10, 11)}, $12, $13, $14, $15, $16) RETURNING id`,
+                             delivery_notes, gift_message, requested_delivery_at, discount_minor, tip_minor)
+         VALUES ($1, $2, 'CATALOG', $3, $4, $5, $6, $7, $8, $9, ${pointSql(10, 11)}, $12, $13, $14, $15, $16, $17) RETURNING id`,
         [
           auth.userId, first.seller_id, amounts.subtotal, amounts.deliveryFee, total, amounts.platformCommission,
           input.recipientName, input.recipientPhone, input.deliveryAddress, longitude, latitude, zone.id,
-          input.deliveryNotes ?? null, input.giftMessage ?? null, requestedAt, promo?.discountMinor ?? 0,
+          input.deliveryNotes ?? null, input.giftMessage ?? null, requestedAt, promo?.discountMinor ?? 0, tip,
         ],
       );
       const id = order.rows[0]?.id as string;

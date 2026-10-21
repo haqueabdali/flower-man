@@ -14,6 +14,7 @@ interface OrderRow {
   subtotal_minor: number;
   delivery_fee_minor: number;
   discount_minor: number;
+  tip_minor: number;
   total_minor: number;
   recipient_name: string;
   delivery_address: string;
@@ -23,7 +24,7 @@ interface OrderRow {
 
 export const ORDER_SUMMARY_SELECT = `
   SELECT o.id, o.order_number, o.status, o.source, o.seller_id, p.display_name AS seller_name, o.subtotal_minor,
-         o.delivery_fee_minor, o.discount_minor, o.total_minor, o.recipient_name, o.delivery_address, o.requested_delivery_at, o.created_at
+         o.delivery_fee_minor, o.discount_minor, o.tip_minor, o.total_minor, o.recipient_name, o.delivery_address, o.requested_delivery_at, o.created_at
     FROM orders o JOIN partner_accounts p ON p.id = o.seller_id`;
 
 export const toOrderSummary = (row: OrderRow): OrderSummary => ({
@@ -36,6 +37,7 @@ export const toOrderSummary = (row: OrderRow): OrderSummary => ({
   subtotalMinor: row.subtotal_minor,
   deliveryFeeMinor: row.delivery_fee_minor,
   discountMinor: row.discount_minor,
+  tipMinor: row.tip_minor,
   totalMinor: row.total_minor,
   currency: 'EUR',
   recipientName: row.recipient_name,
@@ -86,7 +88,7 @@ export async function loadDeliveryTracking(db: pg.Pool | pg.ClientBase, orderId:
 export async function loadOrderDetail(db: pg.Pool, orderId: string, scope: string, scopeParam: string | null): Promise<OrderDetail | null> {
   const result = await db.query<OrderRow & { recipient_phone: string; delivery_notes: string | null; gift_message: string | null; payment_status: string | null; can_review: boolean; review_seller_rating: number | null; review_courier_rating: number | null; review_comment: string | null; review_created_at: Date | null }>(
     `SELECT o.id, o.order_number, o.status, o.source, o.seller_id, p.display_name AS seller_name, o.subtotal_minor,
-            o.delivery_fee_minor, o.discount_minor, o.total_minor, o.recipient_name, o.delivery_address, o.requested_delivery_at, o.created_at,
+            o.delivery_fee_minor, o.discount_minor, o.tip_minor, o.total_minor, o.recipient_name, o.delivery_address, o.requested_delivery_at, o.created_at,
             o.recipient_phone, o.delivery_notes, o.gift_message, pay.status AS payment_status,
             r.seller_rating AS review_seller_rating, r.courier_rating AS review_courier_rating, r.comment AS review_comment,
             r.created_at AS review_created_at,

@@ -391,3 +391,11 @@ Never rewrite an accepted decision: add a new one that supersedes it.
 - Unlike product photos, offer photos are private: `GET /custom-requests/:id/offers/:offerId/image` answers only the
   request's customer and members of the offering seller (404 for anyone else). The apps load it with the bearer token.
 - The partner app shares one photo picker (camera or gallery, square, compressed) between products and offers.
+
+## ADR-026: Courier tips
+
+- Customers can add a tip at checkout (`tipMinor`, 0–€50; the app offers €1/2/3/5). It is part of the payment
+  (`orders.tip_minor`, migration 0020) and is credited in full to the courier who delivers, as a `COURIER_TIP` ledger entry
+  next to the delivery fee (same once-only guarantee). Couriers see the tip on offered jobs.
+- Discounts never apply to the tip. Sales analytics exclude tips from revenue.
+- A refund after delivery is still charged back to the seller only up to their earnings; the courier keeps the tip.

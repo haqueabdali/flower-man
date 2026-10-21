@@ -210,12 +210,16 @@ const recipientAndDelivery = {
   giftMessage: z.string().trim().max(500).optional(),
 };
 
+export const MAX_TIP_MINOR = 5000;
+
 export const checkoutSchema = z.strictObject({
   ...recipientAndDelivery,
   requestedDeliveryAt: isoDate.optional(),
   /** Optional: if given, checkout fails with 409 when the server total differs (the client shows the new total). */
   expectedTotalMinor: z.number().int().positive().optional(),
   promoCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{3,32}$/, { message: 'This code is not valid.' }).optional(),
+  /** Optional tip for the courier, in cents (max €50). */
+  tipMinor: z.number().int().min(0).max(MAX_TIP_MINOR).optional(),
 });
 export type CheckoutRequest = z.infer<typeof checkoutSchema>;
 
@@ -299,6 +303,8 @@ export interface OrderSummary {
   readonly deliveryFeeMinor: number;
   /** Platform-funded discount code; totalMinor = subtotal + delivery fee − discount. */
   readonly discountMinor: number;
+  /** Tip for the courier (all of it goes to the courier). */
+  readonly tipMinor: number;
   readonly totalMinor: number;
   readonly currency: 'EUR';
   readonly recipientName: string;
@@ -452,6 +458,7 @@ export interface CourierJob {
   readonly distanceMeters: number | null;
   /** Delivery slot start chosen by the customer; null = as soon as possible. */
   readonly requestedDeliveryAt: string | null;
+  readonly tipMinor: number;
 }
 
 // ---------------------------------------------------------------- notifications
@@ -558,7 +565,7 @@ export const ANALYTICS_PERIODS = [7, 30, 90] as const;
 /** Sales overview for the admin dashboard. Days are calendar days in Europe/Rome. */
 export interface MarketplaceAnalytics {
   readonly days: number;
-  /** Paid orders whose payment fell in the period, excluding cancelled and refunded ones. */
+  /** Paid orders whose payment fell in the period, excluding cancelled and refunded ones. Revenue excludes courier tips. */
   readonly orders: number;
   readonly revenueMinor: number;
   readonly averageOrderMinor: number;

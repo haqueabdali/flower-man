@@ -719,3 +719,26 @@ describe('custom offer photos', () => {
     assert.equal((await (await signUp('nosy')).raw('GET', `/${offer.imagePath}`)).status, 404, 'another customer');
   });
 });
+
+describe('courier tips', () => {
+  it('adds the tip to the payment and credits all of it to the courier who delivers', async () => {
+    const roses = await shop.user.post<Product>('/seller/products', { name: 'Tip roses', category: 'ROSES', priceMinor: 2000 }, 201);
+    const buyer = await signUp('tipper');
+    await buyer.put('/cart/items', { productId: roses.id, quantity: 1 });
+    const delivery = { recipientName: 'Eva', recipientPhone: '+393331234567', deliveryAddress: 'Via Tasso 2, Bergamo', deliveryLocation: BERGAMO_CENTRE };
+    await buyer.post('/checkout', { ...delivery, tipMinor: 6000 }, 400);
+    const checkout = await buyer.post<CheckoutResponse>('/checkout', { ...delivery, tipMinor: 300, expectedTotalMinor: 2000 + 590 + 300 }, 201);
+    assert.equal(checkout.order.tipMinor, 300);
+    assert.equal(checkout.payment.amountMinor, 2890);
+    await pay(checkout);
+    for (const step of ['accept', 'prepare', 'ready']) await shop.user.post(`/seller/orders/${checkout.order.id}/${step}`);
+    const job = (await courier.user.get<{ items: CourierJob[] }>('/courier/jobs/offered')).items.find((j) => j.orderNumber === checkout.order.orderNumber);
+    assert.equal(job?.tipMinor, 300, 'the courier sees the tip before accepting');
+    await deliver(courier.user, job?.deliveryId as string);
+    const entries = await db.query<{ type: string; amount_minor: number }>(
+      `SELECT type, amount_minor FROM ledger_entries WHERE order_id = $1 AND partner_id = $2 ORDER BY type`,
+      [checkout.order.id, courier.partner.id],
+    );
+    assert.deepEqual(entries.rows.map((r) => [r.type, r.amount_minor]), [['COURIER_TIP', 300], ['DELIVERY_FEE', 590]]);
+  });
+});

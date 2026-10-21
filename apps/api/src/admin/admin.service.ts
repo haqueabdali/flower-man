@@ -44,7 +44,7 @@ export class AdminService {
   async analytics(days: number): Promise<MarketplaceAnalytics> {
     // The period starts at midnight (Rome), `days - 1` days ago, so "7 days" is today plus the 6 days before.
     const since = `date_trunc('day', now() AT TIME ZONE 'Europe/Rome') - make_interval(days => $1::int - 1)`;
-    const paid = `SELECT o.id, o.seller_id, o.status, o.total_minor, h.occurred_at AS paid_at
+    const paid = `SELECT o.id, o.seller_id, o.status, o.total_minor - o.tip_minor AS total_minor, h.occurred_at AS paid_at
                     FROM orders o JOIN order_status_history h ON h.order_id = o.id AND h.to_status = 'PAID'
                    WHERE (h.occurred_at AT TIME ZONE 'Europe/Rome') >= ${since}`;
     const totals = await this.pool.query<Record<string, string | null>>(

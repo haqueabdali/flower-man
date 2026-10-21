@@ -47,7 +47,7 @@ export function CourierJobsScreen() {
       {offered?.length === 0 && <Muted>{t('jobsEmpty')}</Muted>}
       {offered?.map((job) => (
         <Card key={job.deliveryId}>
-          <Strong>{t('jobsEarn', { number: job.orderNumber, price: formatPrice(job.feeMinor) })}</Strong>
+          <Strong>{t('jobsEarn', { number: job.orderNumber, price: formatPrice(job.feeMinor) })}{job.tipMinor > 0 ? ` ${t('jobTip', { price: formatPrice(job.tipMinor) })}` : ''}</Strong>
           <Muted>{t('jobsPickUpAt', { name: job.pickupName, distance: km(job.distanceMeters) })}</Muted>
           <Muted>{t('jobsDeliverTo', { address: job.dropoffAddress })}</Muted>
           <Muted>{deliveryWhen(job)}</Muted>

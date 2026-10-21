@@ -204,6 +204,7 @@ const en = {
   productLowStock: 'Low stock',
   productSoldOut: 'Sold out',
   offerPhotoHint: 'Show the customer a photo of a similar bouquet: offers with a photo are chosen more often.',
+  jobTip: '+ {price} tip',
 } as const;
 
 type Key = keyof typeof en;
@@ -402,6 +403,7 @@ const it: { [K in Key]: string } = {
   productLowStock: 'Scorte basse',
   productSoldOut: 'Esaurito',
   offerPhotoHint: 'Mostra al cliente la foto di un mazzo simile: le offerte con foto vengono scelte più spesso.',
+  jobTip: '+ {price} di mancia',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

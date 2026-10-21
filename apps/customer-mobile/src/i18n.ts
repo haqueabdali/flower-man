@@ -204,6 +204,10 @@ const en = {
   favouriteSave: '♡ Save this florist',
   favouriteSaved: '♥ Saved florist',
   favouritesAll: 'All florists',
+  checkoutTip: 'Tip for the courier',
+  checkoutTipNone: 'No tip',
+  checkoutTipNote: 'The whole tip goes to the courier.',
+  orderTip: 'Courier tip {price}',
 } as const;
 
 type Key = keyof typeof en;
@@ -399,6 +403,10 @@ const it: { [K in Key]: string } = {
   favouriteSave: '♡ Salva questo fiorista',
   favouriteSaved: '♥ Fiorista salvato',
   favouritesAll: 'Tutti i fioristi',
+  checkoutTip: 'Mancia per il corriere',
+  checkoutTipNone: 'Nessuna',
+  checkoutTipNote: 'La mancia va interamente al corriere.',
+  orderTip: 'Mancia al corriere {price}',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

@@ -24,7 +24,7 @@ export function RevenueChart({ days }: { days: readonly Day[] }) {
   return (
     <div className="chart">
       <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span className="muted">Revenue per day (paid orders, excluding cancelled and refunded)</span>
+        <span className="muted">Revenue per day (paid orders, excluding cancelled and refunded orders and courier tips)</span>
         <button type="button" className="secondary" onClick={() => setAsTable((value) => !value)}>{asTable ? 'Show chart' : 'Show table'}</button>
       </div>
       {asTable ? (

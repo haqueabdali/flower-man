@@ -59,6 +59,7 @@ export function CheckoutScreen() {
   const [deliverAt, setDeliverAt] = useState<Date | null>(null);
   const [promoInput, setPromoInput] = useState('');
   const [promo, setPromo] = useState<PromoPreview | null>(null);
+  const [tip, setTip] = useState(0);
   const [hours, setHours] = useState<OpeningHours>({});
   useEffect(() => {
     void api.request<Cart>('cart').then((cart) => setHours(cart.sellerOpeningHours)).catch(() => undefined);
@@ -80,7 +81,8 @@ export function CheckoutScreen() {
             ...(deliveryNotes ? { deliveryNotes } : {}),
             ...(giftMessage ? { giftMessage } : {}),
             ...(deliverAt ? { requestedDeliveryAt: deliverAt.toISOString() } : {}),
-            ...(promo ? { promoCode: promo.code, expectedTotalMinor: promo.totalMinor } : {}),
+            ...(promo ? { promoCode: promo.code, expectedTotalMinor: promo.totalMinor + tip } : {}),
+            ...(tip > 0 ? { tipMinor: tip } : {}),
           },
         });
         navigation.reset({ name: 'payment', checkout });
@@ -96,6 +98,15 @@ export function CheckoutScreen() {
       <Field label={t('checkoutAddress')} value={deliveryAddress} onChangeText={setDeliveryAddress} placeholder={t('checkoutAddressPlaceholder')} />
       <Muted>{t('checkoutLocationNote')}</Muted>
       <DeliveryTimePicker value={deliverAt} onChange={setDeliverAt} hours={hours} />
+      <Card>
+        <Strong>{t('checkoutTip')}</Strong>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {[0, 100, 200, 300, 500].map((amount) => (
+            <Button key={amount} kind={tip === amount ? 'primary' : 'secondary'} title={amount === 0 ? t('checkoutTipNone') : formatPrice(amount)} onPress={() => setTip(amount)} />
+          ))}
+        </View>
+        <Muted>{t('checkoutTipNote')}</Muted>
+      </Card>
       <Field label={t('checkoutNotes')} value={deliveryNotes} onChangeText={setDeliveryNotes} />
       <Field label={t('checkoutGift')} value={giftMessage} onChangeText={setGiftMessage} multiline />
       <Card>

@@ -49,12 +49,12 @@ export class LedgerService {
   ) {}
 
   /**
-   * Records seller revenue, platform commission and courier fee for a delivered order. Idempotent:
+   * Records seller revenue, platform commission, courier fee and tip for a delivered order. Idempotent:
    * a unique constraint makes a second call a no-op, so earnings can never be counted twice.
    */
   async recordDeliveredOrder(client: pg.ClientBase, orderId: string): Promise<void> {
-    const order = await client.query<{ seller_id: string; order_number: string; subtotal_minor: number; platform_commission_minor: number }>(
-      'SELECT seller_id, order_number, subtotal_minor, platform_commission_minor FROM orders WHERE id = $1',
+    const order = await client.query<{ seller_id: string; order_number: string; subtotal_minor: number; platform_commission_minor: number; tip_minor: number }>(
+      'SELECT seller_id, order_number, subtotal_minor, platform_commission_minor, tip_minor FROM orders WHERE id = $1',
       [orderId],
     );
     const row = order.rows[0];
@@ -73,6 +73,9 @@ export class LedgerService {
     const job = delivery.rows[0];
     if (job && job.fee_minor > 0) {
       await this.insert(client, job.courier_id, 'DELIVERY_FEE', job.fee_minor, orderId, job.id, `${label}: delivery`);
+    }
+    if (job && row.tip_minor > 0) {
+      await this.insert(client, job.courier_id, 'COURIER_TIP', row.tip_minor, orderId, job.id, `${label}: tip`);
     }
   }
 
@@ -242,7 +245,7 @@ export class LedgerService {
     await client.query(
       `INSERT INTO ledger_entries (partner_id, type, amount_minor, order_id, delivery_id, description)
        VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (partner_id, type, order_id, delivery_id)
-         WHERE type IN ('ORDER_REVENUE', 'DELIVERY_FEE', 'PLATFORM_COMMISSION') DO NOTHING`,
+         WHERE type IN ('ORDER_REVENUE', 'DELIVERY_FEE', 'COURIER_TIP', 'PLATFORM_COMMISSION') DO NOTHING`,
       [partnerId, type, amount, orderId, deliveryId, description],
     );
   }
