@@ -419,3 +419,12 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   reminders with one UPDATE (`last_sent_for` = the occurrence), so each occasion is notified once per year even with several
   API instances. Dates are evaluated in Europe/Rome; 29 February falls back to 28 outside leap years (SQL functions
   `occasion_date` / `occasion_next_date`).
+
+## ADR-029: Monthly statements and operational alerts
+
+- On the first maintenance run of each month, every partner with ledger activity in the previous month (Rome calendar) gets
+  a statement email in the owner's language: flowers sold, commission, delivery fees, tips, adjustments, net, payouts made in
+  the month and the balance still to be paid. `partner_statements` (migration 0023) claims each partner/month once.
+- `ALERT_WEBHOOK_URL` (optional; checked by `release:production-check`) receives `{ "text": … }` alerts for HTTP 500 errors
+  (method, route pattern, error name, request ID — never bodies, queries or user data) and failed maintenance runs,
+  throttled to one per problem every 5 minutes and 20 per hour. External uptime monitoring uses `/api/v1/health`.

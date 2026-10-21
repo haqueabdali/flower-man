@@ -31,6 +31,7 @@ try {
   check(config.corsOrigins.length > 0, 'CORS_ORIGINS lists the admin origin(s)');
   check(config.storage.driver === 's3', 'STORAGE_DRIVER=s3 (S3-compatible object storage, not local disk)');
   check(config.rateLimitStore === 'postgres', 'RATE_LIMIT_STORE=postgres (shared by every API instance)');
+  check(config.alertWebhookUrl !== null, 'ALERT_WEBHOOK_URL set (500 errors and failed jobs reach the team)');
 } catch (error) {
   check(false, `API configuration: ${error.message}`);
 }

@@ -24,11 +24,13 @@ import { createPaymentProvider, createStripeClient, PAYMENT_PROVIDER } from './p
 import { PaymentsController } from './payments/payments.controller.js';
 import { STRIPE_CLIENT } from './payments/payments.module-tokens.js';
 import { PaymentsService } from './payments/payments.service.js';
+import { StatementsService } from './ledger/statements.service.js';
 import { RemindersService } from './me/reminders.service.js';
 import { ReceiptsService } from './orders/receipts.service.js';
 import { DataExportService } from './me/data-export.service.js';
 import { PromoService } from './orders/promo.service.js';
 import { ReviewsService } from './reviews/reviews.service.js';
+import { ALERTER, Alerter } from './common/alerts.js';
 import { createObjectStorage, OBJECT_STORAGE } from './storage/object-storage.js';
 import { ZonesController } from './zones/zones.controller.js';
 import { ZonesService } from './zones/zones.service.js';
@@ -65,11 +67,13 @@ import { ZonesService } from './zones/zones.service.js';
     PromoService,
     ReceiptsService,
     RemindersService,
+    StatementsService,
     DataExportService,
     { provide: PAYMENT_PROVIDER, inject: [APP_CONFIG], useFactory: (config: AppConfig) => createPaymentProvider(config.payments) },
     { provide: STRIPE_CLIENT, inject: [APP_CONFIG], useFactory: (config: AppConfig) => createStripeClient(config.payments) },
+    { provide: ALERTER, inject: [APP_CONFIG], useFactory: (config: AppConfig) => new Alerter(config.alertWebhookUrl, `flower-man-api ${config.version} (${config.nodeEnv})`) },
     { provide: OBJECT_STORAGE, inject: [APP_CONFIG], useFactory: (config: AppConfig) => createObjectStorage(config.storage) },
   ],
-  exports: [MaintenanceService, NotificationsService],
+  exports: [MaintenanceService, NotificationsService, ALERTER],
 })
 export class PlatformModule {}

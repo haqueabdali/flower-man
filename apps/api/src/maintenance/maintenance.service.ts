@@ -3,7 +3,9 @@ import pg from 'pg';
 
 import type { AppConfig } from '../config/app-config.js';
 import { APP_CONFIG } from '../config/config.module.js';
+import { ALERTER, type Alerter } from '../common/alerts.js';
 import { PG_POOL } from '../database/database.module.js';
+import { StatementsService } from '../ledger/statements.service.js';
 import { RemindersService } from '../me/reminders.service.js';
 import { CommerceService } from '../orders/commerce.service.js';
 
@@ -21,6 +23,8 @@ export class MaintenanceService implements OnApplicationBootstrap, OnApplication
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly commerce: CommerceService,
     private readonly reminders: RemindersService,
+    private readonly statements: StatementsService,
+    @Inject(ALERTER) private readonly alerter: Alerter,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -28,7 +32,10 @@ export class MaintenanceService implements OnApplicationBootstrap, OnApplication
       return;
     }
     this.timer = setInterval(() => {
-      this.runOnce().catch((error: unknown) => this.logger.error(`Maintenance failed: ${(error as Error).message}`));
+      this.runOnce().catch((error: unknown) => {
+        this.logger.error(`Maintenance failed: ${(error as Error).message}`);
+        this.alerter.report('maintenance', `Maintenance job failed: ${(error as Error).name}`);
+      });
     }, 60_000);
     this.timer.unref();
   }
@@ -37,7 +44,7 @@ export class MaintenanceService implements OnApplicationBootstrap, OnApplication
     clearInterval(this.timer);
   }
 
-  async runOnce(): Promise<{ expiredOrders: number; expiredRequests: number; purgedLocations: number; purgedRateLimits: number; reminders: number }> {
+  async runOnce(): Promise<{ expiredOrders: number; expiredRequests: number; purgedLocations: number; purgedRateLimits: number; reminders: number; statements: number }> {
     const stale = await this.pool.query<{ id: string }>(
       `SELECT id FROM orders WHERE status = 'PENDING_PAYMENT' AND created_at < now() - make_interval(mins => $1) LIMIT 100`,
       [this.config.commerce.unpaidOrderTtlMinutes],
@@ -65,6 +72,7 @@ export class MaintenanceService implements OnApplicationBootstrap, OnApplication
       purgedLocations: locations.rowCount ?? 0,
       purgedRateLimits: rateLimits.rowCount ?? 0,
       reminders: await this.reminders.sendDue(),
+      statements: await this.statements.sendLastMonth(),
     };
   }
 }

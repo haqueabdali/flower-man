@@ -4,6 +4,7 @@ import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, HttpSta
 import type { Request, Response } from 'express';
 import { locales, type core } from 'zod';
 
+import type { Alerter } from './alerts.js';
 import { translateToItalian } from './messages-it.js';
 import { getRequestId } from './request-context.js';
 
@@ -126,6 +127,8 @@ function describeRaw(exception: unknown): { status: number; message: string } {
 export class ApiExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger('ApiExceptionFilter');
 
+  constructor(private readonly alerter: Alerter | null = null) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
     const request = http.getRequest<Request>();
@@ -138,6 +141,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (status >= 500) {
       const detail = exception instanceof Error ? (exception.stack ?? exception.message) : String(exception);
       this.logger.error(`${request.method} ${request.path} failed [${requestId}]`, detail);
+      // The route pattern (not the concrete path) groups repeats; no body, query or user data leaves the server.
+      const route = (request.route as { path?: string } | undefined)?.path ?? 'unknown route';
+      const name = exception instanceof Error ? exception.name : 'Error';
+      this.alerter?.report(`${request.method} ${route} ${status}`, `${request.method} ${route} → ${status} ${name} [request ${requestId}]`);
     }
 
     if (response.headersSent) {

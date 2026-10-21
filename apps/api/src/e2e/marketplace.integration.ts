@@ -812,3 +812,25 @@ describe('featured florists and occasion reminders', () => {
     assert.equal((await customer.get<{ items: unknown[] }>('/reminders')).items.length, 1);
   });
 });
+
+describe('monthly statements', () => {
+  it('emails each partner with activity last month one statement', async () => {
+    const mailbox = app.get<MemoryMailer>(MAILER);
+    const ownerEmail = (await shop.user.get<{ user: { email: string } }>('/auth/me')).user.email;
+    // An adjustment dated in the middle of last month (the ledger accepts inserts; it refuses updates and deletes).
+    await db.query(
+      `INSERT INTO ledger_entries (partner_id, type, amount_minor, description, created_at)
+       VALUES ($1, 'PAYOUT_ADJUSTMENT', 1234, 'Test bonus', (date_trunc('month', now() AT TIME ZONE 'Europe/Rome') - interval '15 days') AT TIME ZONE 'Europe/Rome')`,
+      [shop.partner.id],
+    );
+    const maintenance = app.get(MaintenanceService);
+    const first = await maintenance.runOnce();
+    const second = await maintenance.runOnce();
+    assert.ok(first.statements >= 1);
+    assert.equal(second.statements, 0, 'never twice for the same month');
+    const statements = mailbox.sent.filter((m) => m.to === ownerEmail && m.subject.includes('estratto conto'));
+    assert.equal(statements.length, 1);
+    assert.match(statements[0]?.text ?? '', /Rettifiche \(rimborsi\): 12,34 €/);
+    assert.match(statements[0]?.text ?? '', /Guadagno netto del mese: 12,34 €/);
+  });
+});

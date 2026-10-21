@@ -109,11 +109,16 @@ Rollback:
 ## 5. Operations
 
 - Health: `GET /api/v1/health` returns 200 `{status:"ok"}`, or 503 when the database is unreachable.
-  Use it for load-balancer checks.
+  Use it for load-balancer checks, and point an external uptime monitor at it (e.g. every minute, alert after 2 failures).
+- Alerts: set `ALERT_WEBHOOK_URL` to a team chat incoming webhook (Slack or Google Chat; for Discord add `/slack` at the
+  end of its webhook URL). Every HTTP 500 and every failed maintenance run posts a short message with the route and the
+  request ID (no personal data); repeats are limited to one per 5 minutes and 20 per hour.
 - Logs carry `X-Request-Id`. Error responses show the same `requestId` to users, so support can find the log line.
 - Maintenance runs every minute inside the API:
   - unpaid orders are cancelled after `UNPAID_ORDER_TTL_MINUTES`;
   - custom requests expire;
-  - GPS points are purged 30 days after delivery.
+  - GPS points are purged 30 days after delivery;
+  - occasion reminders are sent;
+  - on the first run of each month, every partner with earnings activity receives last month's statement by email.
 - Payouts: Admin → Earnings & payouts → create a settlement → mark it processing → make the bank transfer
   → mark it paid with the transfer reference.

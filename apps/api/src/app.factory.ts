@@ -8,6 +8,7 @@ import express from 'express';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module.js';
+import { ALERTER, type Alerter } from './common/alerts.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { requestContext } from './common/request-context.js';
 import type { AppConfig } from './config/app-config.js';
@@ -51,7 +52,7 @@ export async function createApp(config: AppConfig): Promise<NestExpressApplicati
     maxAge: 600,
   });
   app.setGlobalPrefix(API_PREFIX);
-  app.useGlobalFilters(new ApiExceptionFilter());
+  app.useGlobalFilters(new ApiExceptionFilter(app.get<Alerter>(ALERTER)));
   app.enableShutdownHooks();
   return app;
 }

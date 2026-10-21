@@ -31,6 +31,7 @@ declare global {
       readonly S3_ACCESS_KEY_ID?: string;
       readonly S3_SECRET_ACCESS_KEY?: string;
       readonly RATE_LIMIT_STORE?: string;
+      readonly ALERT_WEBHOOK_URL?: string;
       readonly PLATFORM_OWNER_EMAIL?: string;
       readonly PLATFORM_OWNER_PASSWORD?: string;
       readonly PLATFORM_OWNER_NAME?: string;

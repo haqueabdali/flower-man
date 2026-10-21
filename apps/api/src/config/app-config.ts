@@ -21,6 +21,8 @@ export interface AppConfig {
   readonly storage: StorageConfig;
   /** memory: per process (one instance only). postgres: shared by every API instance. */
   readonly rateLimitStore: 'memory' | 'postgres';
+  /** Team chat webhook for operational alerts (500 errors, failed background jobs). Null = alerts off. */
+  readonly alertWebhookUrl: string | null;
 }
 
 export interface CommerceConfig {
@@ -158,6 +160,21 @@ function parseStorageConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): StorageCo
     endpoint = url.toString().replace(/\/$/, '');
   }
   return { driver, localDir, s3: { endpoint, region, bucket, accessKeyId, secretAccessKey } };
+}
+
+function parseAlertWebhook(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): string | null {
+  const raw = env.ALERT_WEBHOOK_URL?.trim();
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new ConfigError('ALERT_WEBHOOK_URL must be a URL (e.g. a Slack incoming webhook).');
+  }
+  if (url.protocol !== 'https:' && !(nodeEnv !== 'production' && url.protocol === 'http:')) {
+    throw new ConfigError('ALERT_WEBHOOK_URL must use https.');
+  }
+  return url.toString();
 }
 
 function parseRateLimitStore(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AppConfig['rateLimitStore'] {
@@ -357,5 +374,6 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
     push: parsePushConfig(env),
     storage: parseStorageConfig(env, nodeEnv),
     rateLimitStore: parseRateLimitStore(env, nodeEnv),
+    alertWebhookUrl: parseAlertWebhook(env, nodeEnv),
   };
 }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  type ArgumentsHost,
   BadRequestException,
   ForbiddenException,
   HttpException,
@@ -10,7 +11,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 
-import { describeError } from './api-exception.filter.js';
+import type { Alerter } from './alerts.js';
+import { ApiExceptionFilter, describeError } from './api-exception.filter.js';
 
 describe('describeError', () => {
   it('keeps the status and message of client errors', () => {
@@ -55,5 +57,27 @@ describe('describeError', () => {
 
     const hidden = Object.assign(new Error('internal detail'), { status: 400, expose: false });
     assert.equal(describeError(hidden).message, 'Internal server error.');
+  });
+});
+
+describe('ApiExceptionFilter alerts', () => {
+  const run = (exception: unknown) => {
+    const reports: [string, string][] = [];
+    const alerter = { report: (key: string, message: string) => (reports.push([key, message]), true) } as unknown as Alerter;
+    const response = { locals: { requestId: 'req-1' }, headersSent: false, status: () => response, json: () => response };
+    const request = { method: 'GET', path: '/api/v1/orders/123?secret=x', route: { path: '/api/v1/orders/:id' }, headers: {} };
+    const host = { switchToHttp: () => ({ getRequest: () => request, getResponse: () => response }) } as unknown as ArgumentsHost;
+    new ApiExceptionFilter(alerter).catch(exception, host);
+    return reports;
+  };
+
+  it('alerts on internal errors with the route pattern and request id only', () => {
+    assert.deepEqual(run(new TypeError('cannot read user.email')), [
+      ['GET /api/v1/orders/:id 500', 'GET /api/v1/orders/:id → 500 TypeError [request req-1]'],
+    ]);
+  });
+
+  it('stays quiet for client errors', () => {
+    assert.deepEqual(run(new NotFoundException('Order not found.')), []);
   });
 });
