@@ -5,7 +5,7 @@ import { VERIFICATION_STATUSES } from '@flower-man/domain';
 import { useState } from 'react';
 
 import { Badge, ErrorNote, Section, StatusFilter, Table } from '../../components/ui';
-import { api } from '../../lib/api';
+import { api, when } from '../../lib/api';
 import { act, useLoad } from '../../lib/use-load';
 
 type Row = PartnerAccount & { ownerEmail: string };
@@ -17,6 +17,7 @@ export default function PartnersPage() {
     const notes = window.prompt(`${next} ${row.displayName}: notes (optional)`) ?? undefined;
     return act(() => api(`admin/partners/${row.id}/review`, { method: 'POST', body: { status: next, ...(notes ? { notes } : {}) } }), reload);
   };
+  const feature = (row: Row, days: number) => act(() => api(`admin/partners/${row.id}/feature`, { method: 'POST', body: { days } }), reload);
   return (
     <Section title="Partner verification" actions={<StatusFilter value={status} options={VERIFICATION_STATUSES} onChange={setStatus} />}>
       <ErrorNote error={error} />
@@ -35,6 +36,11 @@ export default function PartnersPage() {
                 {r.verificationStatus === 'SUBMITTED' && <button className="secondary" onClick={() => review(r, 'UNDER_REVIEW')}>Start review</button>}
                 {['SUBMITTED', 'UNDER_REVIEW', 'SUSPENDED'].includes(r.verificationStatus) && <button onClick={() => review(r, 'APPROVED')}>Approve</button>}
                 {['SUBMITTED', 'UNDER_REVIEW'].includes(r.verificationStatus) && <button className="danger" onClick={() => review(r, 'REJECTED')}>Reject</button>}
+                {r.verificationStatus === 'APPROVED' && r.kind !== 'COURIER' && (
+                  r.featuredUntil
+                    ? <button className="secondary" title={`Featured until ${when(r.featuredUntil)}`} onClick={() => feature(r, 0)}>Unfeature</button>
+                    : <button className="secondary" onClick={() => { const days = window.prompt('Feature this florist at the top of the catalogue for how many days? (1–90)', '7'); if (days) feature(r, Number(days)); }}>Feature</button>
+                )}
                 {r.verificationStatus === 'APPROVED' && <button className="danger" onClick={() => review(r, 'SUSPENDED')}>Suspend</button>}
               </div>
             ),

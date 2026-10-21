@@ -775,3 +775,40 @@ describe('receipts and personal data export', () => {
     await (await signUp('unverified', false)).post('/me/data-export', {}, 409);
   });
 });
+
+describe('featured florists and occasion reminders', () => {
+  it('lists featured florists first, under admin control', async () => {
+    await admin.post(`/admin/partners/${courier.partner.id}/feature`, { days: 7 }, 404);
+    await freelancer.user.post('/seller/products', { name: 'Featured daisies', category: 'BOUQUET', priceMinor: 1900 }, 201);
+    await admin.post(`/admin/partners/${freelancer.partner.id}/feature`, { days: 7 }, 204);
+    const catalogue = await fetch(`${base}/catalog/products?lat=${BERGAMO_CENTRE.latitude}&lng=${BERGAMO_CENTRE.longitude}`).then((r) => r.json() as Promise<{ items: Product[] }>);
+    assert.equal(catalogue.items[0]?.sellerId, freelancer.partner.id);
+    assert.equal(catalogue.items[0]?.sellerFeatured, true);
+    assert.ok((await freelancer.user.get<PartnerAccount>(`/partner/accounts/${freelancer.partner.id}`)).featuredUntil);
+    await admin.post(`/admin/partners/${freelancer.partner.id}/feature`, { days: 0 }, 204);
+    assert.equal((await freelancer.user.get<PartnerAccount>(`/partner/accounts/${freelancer.partner.id}`)).featuredUntil, null);
+  });
+
+  it('reminds the customer once before each occasion', async () => {
+    const customer = await signUp('reminders');
+    await customer.post('/reminders', { label: 'Impossible', month: 2, day: 30 }, 400);
+    const rome = (offsetDays: number) => {
+      const parts = Object.fromEntries(
+        new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: 'numeric', day: 'numeric' })
+          .formatToParts(new Date(Date.now() + offsetDays * 86_400_000))
+          .map((p) => [p.type, Number(p.value)]),
+      );
+      return { month: parts['month'] as number, day: parts['day'] as number };
+    };
+    const soon = await customer.post<{ items: { id: string; nextDate: string }[] }>('/reminders', { label: 'Compleanno di mamma', ...rome(2), daysBefore: 3 }, 201);
+    await customer.post('/reminders', { label: 'Anniversario', ...rome(20) }, 201);
+    assert.equal(soon.items.length, 1);
+    const maintenance = app.get(MaintenanceService);
+    await maintenance.runOnce();
+    await maintenance.runOnce();
+    const inbox = (await customer.get<{ items: { type: string; title: string }[] }>('/me/notifications')).items.filter((n) => n.type === 'OCCASION_REMINDER');
+    assert.deepEqual(inbox.map((n) => n.title), ['Compleanno di mamma: tra 2 giorni'], 'only the occasion in the window, only once');
+    await customer.raw('DELETE', `/reminders/${soon.items.find((r) => r.nextDate)?.id}`);
+    assert.equal((await customer.get<{ items: unknown[] }>('/reminders')).items.length, 1);
+  });
+});

@@ -7,6 +7,7 @@ import {
   createPromoSchema,
   createSettlementSchema,
   createZoneSchema,
+  featurePartnerSchema,
   type AdminReview,
   ANALYTICS_PERIODS,
   type CustomRequestView,
@@ -125,6 +126,12 @@ export class AdminController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async review(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string, @Body(new ZodBodyPipe(reviewPartnerSchema)) body: ReviewPartnerRequest): Promise<void> {
     await this.partners.review(auth.userId, id, body);
+  }
+
+  @Post('partners/:id/feature')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async feature(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string, @Body(new ZodBodyPipe(featurePartnerSchema)) body: { days: number }): Promise<void> {
+    await this.partners.feature(auth.userId, id, body.days);
   }
 
   // ---------------------------------------------------------------- zones

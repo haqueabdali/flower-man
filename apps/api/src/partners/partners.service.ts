@@ -36,11 +36,12 @@ interface PartnerRow {
   rating_sum: number;
   rating_count: number;
   operating_hours: Record<string, string>;
+  featured_until: Date | null;
 }
 
 const PARTNER_COLUMNS = `p.id, p.kind, p.display_name, p.legal_name, p.vat_number, p.phone, p.address,
   ${selectPoint('p.location', 'loc')}, p.service_zone_id, p.description, p.verification_status,
-  p.verification_notes, p.courier_available, p.rating_sum, p.rating_count, p.operating_hours`;
+  p.verification_notes, p.courier_available, p.rating_sum, p.rating_count, p.operating_hours, p.featured_until`;
 
 const toPartner = (row: PartnerRow): PartnerAccount => ({
   id: row.id,
@@ -59,6 +60,7 @@ const toPartner = (row: PartnerRow): PartnerAccount => ({
   role: row.role,
   rating: toRating(row.rating_sum, row.rating_count),
   openingHours: row.operating_hours,
+  featuredUntil: row.featured_until && row.featured_until.getTime() > Date.now() ? row.featured_until.toISOString() : null,
 });
 
 /** The approved partner account a request acts as. */
@@ -226,6 +228,19 @@ export class PartnersService {
         data: { partnerId, status: input.status },
       }),
     );
+  }
+
+  /** Platform promotion: featured for `days` from now (0 removes it). Audited. */
+  async feature(adminId: string, partnerId: string, days: number): Promise<void> {
+    const updated = await this.pool.query(
+      `UPDATE partner_accounts SET featured_until = CASE WHEN $2::int = 0 THEN NULL ELSE now() + make_interval(days => $2::int) END, updated_at = now()
+        WHERE id = $1 AND kind IN ('SHOP', 'FREELANCE_SELLER') AND verification_status = 'APPROVED'`,
+      [partnerId, days],
+    );
+    if (updated.rowCount !== 1) {
+      throw new NotFoundException('Seller not found.');
+    }
+    await recordAudit(this.pool, adminId, days === 0 ? 'PARTNER_UNFEATURED' : 'PARTNER_FEATURED', 'partner_account', partnerId, { days });
   }
 
   /** Shop owners add staff by email (the person must already have a Flower Man account). */

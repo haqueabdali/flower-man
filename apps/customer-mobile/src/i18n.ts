@@ -212,6 +212,18 @@ const en = {
   accountExportSent: 'We sent a copy of your data to your email.',
   orderReceipt: 'Email me the order summary',
   orderReceiptSent: 'We sent the order summary to your email.',
+  productFeatured: 'Featured',
+  remindersTitle: 'My occasions',
+  remindersHelp: 'Birthdays, anniversaries… We remind you a few days before, so the flowers arrive on time.',
+  remindersEmpty: 'No occasions saved yet.',
+  remindersLabel: 'Occasion (e.g. Mum’s birthday)',
+  remindersDate: 'Date (day/month, e.g. 14/02)',
+  remindersBefore: 'Remind me',
+  remindersDaysBefore: '{days} days before',
+  remindersAdd: 'Save occasion',
+  remindersNext: 'Next: {date} · reminder {days} days before',
+  remindersBadDate: 'Write the date as day/month, e.g. 14/02.',
+  remindersDelete: 'Delete',
 } as const;
 
 type Key = keyof typeof en;
@@ -415,6 +427,18 @@ const it: { [K in Key]: string } = {
   accountExportSent: 'Ti abbiamo inviato una copia dei tuoi dati via email.',
   orderReceipt: 'Inviami il riepilogo via email',
   orderReceiptSent: 'Ti abbiamo inviato il riepilogo dell’ordine via email.',
+  productFeatured: 'In evidenza',
+  remindersTitle: 'Le mie ricorrenze',
+  remindersHelp: 'Compleanni, anniversari… Ti avvisiamo qualche giorno prima, così i fiori arrivano in tempo.',
+  remindersEmpty: 'Nessuna ricorrenza salvata.',
+  remindersLabel: 'Ricorrenza (es. Compleanno della mamma)',
+  remindersDate: 'Data (giorno/mese, es. 14/02)',
+  remindersBefore: 'Avvisami',
+  remindersDaysBefore: '{days} giorni prima',
+  remindersAdd: 'Salva ricorrenza',
+  remindersNext: 'Prossima: {date} · avviso {days} giorni prima',
+  remindersBadDate: 'Scrivi la data come giorno/mese, es. 14/02.',
+  remindersDelete: 'Elimina',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

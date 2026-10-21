@@ -8,8 +8,11 @@ import {
   checkoutSchema,
   type CreateCustomRequest,
   createCustomRequestSchema,
+  type CreateReminderRequest,
+  createReminderSchema,
   type CustomRequestView,
   type FavouriteSeller,
+  type OccasionReminder,
   type OrderDetail,
   type OrderSummary,
   type PaymentInstructions,
@@ -29,6 +32,7 @@ import { ZodBodyPipe } from '../common/zod-body.pipe.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { CustomRequestsService } from '../custom-requests/custom-requests.service.js';
 import { DeliveryService } from '../delivery/delivery.service.js';
+import { RemindersService } from '../me/reminders.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { ReceiptsService } from './receipts.service.js';
 import { CommerceService } from './commerce.service.js';
@@ -45,7 +49,24 @@ export class CustomerController {
     private readonly reviews: ReviewsService,
     private readonly catalog: CatalogService,
     private readonly receipts: ReceiptsService,
+    private readonly reminders: RemindersService,
   ) {}
+
+  @Get('reminders')
+  async reminderList(@CurrentAuth() auth: AuthenticatedContext): Promise<{ items: OccasionReminder[] }> {
+    return { items: await this.reminders.list(auth.userId) };
+  }
+
+  @Post('reminders')
+  async addReminder(@CurrentAuth() auth: AuthenticatedContext, @Body(new ZodBodyPipe(createReminderSchema)) body: CreateReminderRequest): Promise<{ items: OccasionReminder[] }> {
+    return { items: await this.reminders.create(auth.userId, body) };
+  }
+
+  @Delete('reminders/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeReminder(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string): Promise<void> {
+    await this.reminders.remove(auth.userId, id);
+  }
 
   @Get('favourites')
   async favourites(@CurrentAuth() auth: AuthenticatedContext): Promise<{ items: FavouriteSeller[] }> {

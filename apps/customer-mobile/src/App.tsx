@@ -10,7 +10,7 @@ import { api } from './api';
 import { language, t } from './i18n';
 import { NavigationContext, type Navigator, type Route } from './navigation';
 import { registerForPush } from './push';
-import { AccountScreen, InboxScreen } from './screens/account';
+import { AccountScreen, InboxScreen, RemindersScreen } from './screens/account';
 import { AuthScreen, ResetPasswordScreen, VerifyEmailScreen } from './screens/auth';
 import { CartScreen, CheckoutScreen, PaymentScreen } from './screens/cart';
 import { OrderScreen, OrdersScreen } from './screens/orders';
@@ -121,6 +121,7 @@ function renderRoute(route: Route, user: AuthUser, onSignedOut: () => void): Rea
     case 'shop': return <ShopScreen emailVerified={user.emailVerified} />;
     case 'product': return <ProductScreen product={route.product} />;
     case 'cart': return <CartScreen />;
+    case 'reminders': return <RemindersScreen />;
     case 'checkout': return <CheckoutScreen />;
     case 'payment': return <PaymentScreen checkout={route.checkout} />;
     case 'orders': return <OrdersScreen />;

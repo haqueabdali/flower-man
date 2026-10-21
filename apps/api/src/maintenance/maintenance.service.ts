@@ -4,6 +4,7 @@ import pg from 'pg';
 import type { AppConfig } from '../config/app-config.js';
 import { APP_CONFIG } from '../config/config.module.js';
 import { PG_POOL } from '../database/database.module.js';
+import { RemindersService } from '../me/reminders.service.js';
 import { CommerceService } from '../orders/commerce.service.js';
 
 /** GPS points of finished deliveries are kept this long, then deleted (data minimisation). */
@@ -19,6 +20,7 @@ export class MaintenanceService implements OnApplicationBootstrap, OnApplication
     @Inject(PG_POOL) private readonly pool: pg.Pool,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly commerce: CommerceService,
+    private readonly reminders: RemindersService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -35,7 +37,7 @@ export class MaintenanceService implements OnApplicationBootstrap, OnApplication
     clearInterval(this.timer);
   }
 
-  async runOnce(): Promise<{ expiredOrders: number; expiredRequests: number; purgedLocations: number; purgedRateLimits: number }> {
+  async runOnce(): Promise<{ expiredOrders: number; expiredRequests: number; purgedLocations: number; purgedRateLimits: number; reminders: number }> {
     const stale = await this.pool.query<{ id: string }>(
       `SELECT id FROM orders WHERE status = 'PENDING_PAYMENT' AND created_at < now() - make_interval(mins => $1) LIMIT 100`,
       [this.config.commerce.unpaidOrderTtlMinutes],
@@ -62,6 +64,7 @@ export class MaintenanceService implements OnApplicationBootstrap, OnApplication
       expiredRequests: requests.rowCount ?? 0,
       purgedLocations: locations.rowCount ?? 0,
       purgedRateLimits: rateLimits.rowCount ?? 0,
+      reminders: await this.reminders.sendDue(),
     };
   }
 }

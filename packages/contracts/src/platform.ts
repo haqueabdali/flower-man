@@ -106,6 +106,8 @@ export interface PartnerAccount {
   readonly role: 'OWNER' | 'STAFF';
   readonly rating: Rating | null;
   readonly openingHours: Readonly<Partial<Record<(typeof WEEKDAYS)[number], string>>>;
+  /** Promoted by the platform until this time (null = not featured). */
+  readonly featuredUntil: string | null;
 }
 
 export const reviewPartnerSchema = z.strictObject({
@@ -151,6 +153,8 @@ export interface Product {
   /** Uploaded photo, relative to the API base URL (`${client.baseUrl}/${imagePath}`); changes when the photo changes. */
   readonly imagePath: string | null;
   readonly sellerRating: Rating | null;
+  /** The seller is currently featured by the platform (listed first). */
+  readonly sellerFeatured: boolean;
   readonly distanceMeters?: number;
 }
 
@@ -162,10 +166,36 @@ export interface NearbySeller {
   readonly distanceMeters: number;
   readonly productCount: number;
   readonly rating: Rating | null;
+  readonly featured: boolean;
 }
 
 /** Sellers are notified (and see a badge) when a product's stock drops to this or below. */
 export const LOW_STOCK_THRESHOLD = 3;
+
+export const featurePartnerSchema = z.strictObject({ days: z.number().int().min(0).max(90) });
+
+// ---------------------------------------------------------------- occasion reminders
+export const createReminderSchema = z
+  .strictObject({
+    label: z.string().trim().min(2).max(60),
+    month: z.number().int().min(1).max(12),
+    day: z.number().int().min(1).max(31),
+    daysBefore: z.number().int().min(1).max(14).optional(),
+  })
+  .refine((r) => r.day <= (r.month === 2 ? 29 : [4, 6, 9, 11].includes(r.month) ? 30 : 31), { message: 'This date does not exist.', path: ['day'] });
+export type CreateReminderRequest = z.infer<typeof createReminderSchema>;
+
+export interface OccasionReminder {
+  readonly id: string;
+  readonly label: string;
+  readonly month: number;
+  readonly day: number;
+  readonly daysBefore: number;
+  /** Next occurrence (YYYY-MM-DD, Rome). */
+  readonly nextDate: string;
+}
+
+export const MAX_REMINDERS = 20;
 
 /** A florist the customer saved. Only approved sellers are listed. */
 export interface FavouriteSeller {

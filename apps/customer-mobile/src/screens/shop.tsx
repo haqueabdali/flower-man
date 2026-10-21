@@ -68,6 +68,7 @@ export function ShopScreen({ emailVerified }: { emailVerified: boolean }) {
       {products?.map((product) => (
         <Card key={product.id} onPress={() => navigation.push({ name: 'product', product })}>
           <ProductPhoto product={product} height={160} />
+          {product.sellerFeatured && <Pill label={`★ ${t('productFeatured')}`} />}
           <Strong>{product.name}</Strong>
           <Muted>{product.sellerName}{product.distanceMeters !== undefined ? ` · ${t('shopDistance', { km: (product.distanceMeters / 1000).toFixed(1) })}` : ''}</Muted>
           <Body>{formatPrice(product.priceMinor)}{product.sellerRating ? `  ·  ${ratingText(product.sellerRating)}` : ''}</Body>

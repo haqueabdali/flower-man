@@ -14,6 +14,7 @@ export type Route =
   | { name: 'request'; requestId: string }
   | { name: 'inbox' }
   | { name: 'account' }
+  | { name: 'reminders' }
   | { name: 'verifyEmail'; token: string }
   | { name: 'resetPassword'; token: string };
 

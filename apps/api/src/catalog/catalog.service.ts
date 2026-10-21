@@ -26,11 +26,13 @@ interface ProductRow {
   image_updated_at: Date | null;
   rating_sum: number;
   rating_count: number;
+  featured: boolean;
   distance_m?: number | null;
 }
 
 const PRODUCT_COLUMNS = `pr.id, pr.seller_id, p.display_name AS seller_name, p.kind AS seller_kind, pr.name, pr.description,
-  pr.category, pr.price_minor, pr.available, pr.stock, pr.image_url, pr.image_updated_at, p.rating_sum, p.rating_count`;
+  pr.category, pr.price_minor, pr.available, pr.stock, pr.image_url, pr.image_updated_at, p.rating_sum, p.rating_count,
+  COALESCE(p.featured_until > now(), false) AS featured`;
 
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -49,6 +51,7 @@ const toProduct = (row: ProductRow): Product => ({
   imageUrl: row.image_url,
   imagePath: row.image_updated_at ? `catalog/products/${row.id}/image?v=${row.image_updated_at.getTime()}` : null,
   sellerRating: toRating(row.rating_sum, row.rating_count),
+  sellerFeatured: row.featured,
   ...(row.distance_m === undefined || row.distance_m === null ? {} : { distanceMeters: Math.round(row.distance_m) }),
 });
 
@@ -166,7 +169,7 @@ export class CatalogService {
           AND ($4::text IS NULL OR pr.category = $4)
           AND ($5::text IS NULL OR pr.name ILIKE '%' || $5 || '%' OR pr.description ILIKE '%' || $5 || '%')
           AND ($6::uuid IS NULL OR pr.seller_id = $6)
-        ORDER BY distance_m ASC, pr.price_minor ASC LIMIT 200`,
+        ORDER BY COALESCE(p.featured_until > now(), false) DESC, distance_m ASC, pr.price_minor ASC LIMIT 200`,
       [zone.id, query.longitude, query.latitude, query.category ?? null, query.search?.slice(0, 80) ?? null, query.sellerId ?? null],
     );
     return result.rows.map(toProduct);
@@ -201,12 +204,12 @@ export class CatalogService {
 
   async nearbySellers(latitude: number, longitude: number): Promise<NearbySeller[]> {
     const zone = await this.zones.requireActiveZone(latitude, longitude);
-    const result = await this.pool.query<{ id: string; kind: NearbySeller['kind']; display_name: string; description: string | null; distance_m: number; product_count: string; rating_sum: number; rating_count: number }>(
-      `SELECT p.id, p.kind, p.display_name, p.description, p.rating_sum, p.rating_count, ST_Distance(p.location, ${pointSql(2, 3)}) AS distance_m,
+    const result = await this.pool.query<{ id: string; kind: NearbySeller['kind']; display_name: string; description: string | null; distance_m: number; product_count: string; rating_sum: number; rating_count: number; featured: boolean }>(
+      `SELECT p.id, p.kind, p.display_name, p.description, p.rating_sum, p.rating_count, COALESCE(p.featured_until > now(), false) AS featured, ST_Distance(p.location, ${pointSql(2, 3)}) AS distance_m,
               (SELECT count(*) FROM products pr WHERE pr.seller_id = p.id AND pr.available AND pr.archived_at IS NULL) AS product_count
          FROM partner_accounts p
         WHERE p.service_zone_id = $1 AND p.verification_status = 'APPROVED' AND p.kind IN ('SHOP', 'FREELANCE_SELLER')
-        ORDER BY distance_m LIMIT 100`,
+        ORDER BY featured DESC, distance_m LIMIT 100`,
       [zone.id, longitude, latitude],
     );
     return result.rows.map((row) => ({
@@ -217,6 +220,7 @@ export class CatalogService {
       distanceMeters: Math.round(row.distance_m),
       productCount: Number(row.product_count),
       rating: toRating(row.rating_sum, row.rating_count),
+      featured: row.featured,
     }));
   }
 

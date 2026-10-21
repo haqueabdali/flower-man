@@ -409,3 +409,13 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   custom requests, reviews, favourites, partner accounts, notifications, 12 months of sign-in history, devices) to their own
   verified address, at most once per hour (`users.data_export_requested_at`, migration 0021). No password hashes, tokens or
   other users' data. Both apps have the button in the account screen. The mailer now supports attachments.
+
+## ADR-028: Featured florists and occasion reminders
+
+- Admins can feature an approved florist for 1–90 days (`POST /admin/partners/:id/feature`, audited;
+  `partner_accounts.featured_until`, migration 0022). Featured florists come first in the catalogue and in nearby sellers,
+  with a "Featured / In evidenza" badge in the customer app.
+- Customers save occasions (label + day/month, reminder 1–14 days before, max 20). The maintenance job claims due
+  reminders with one UPDATE (`last_sent_for` = the occurrence), so each occasion is notified once per year even with several
+  API instances. Dates are evaluated in Europe/Rome; 29 February falls back to 28 outside leap years (SQL functions
+  `occasion_date` / `occasion_next_date`).
