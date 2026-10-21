@@ -1,4 +1,15 @@
-import type { Cart, CartItemRequest, CheckoutRequest, CheckoutResponse, OrderDetail, OrderSummary, PromoPreview, PromoPreviewRequest, ReorderResponse } from '@flower-man/contracts';
+import {
+  type Cart,
+  type CartItemRequest,
+  type CheckoutRequest,
+  type CheckoutResponse,
+  LOW_STOCK_THRESHOLD,
+  type OrderDetail,
+  type OrderSummary,
+  type PromoPreview,
+  type PromoPreviewRequest,
+  type ReorderResponse,
+} from '@flower-man/contracts';
 import { calculateOrderAmounts, isOpenAt, type OpeningHours, type OrderStatus, type Weekday } from '@flower-man/domain';
 import {
   BadRequestException,
@@ -215,7 +226,8 @@ export class CommerceService {
     const requestedAt = validateRequestedDelivery(input.requestedDeliveryAt);
     const { latitude, longitude } = input.deliveryLocation;
 
-    const orderId = await withTransaction(this.pool, async (client) => {
+    const { orderId, sellerId, lowStock } = await withTransaction(this.pool, async (client) => {
+      const lowStock: { name: string; left: number }[] = [];
       const zone = await this.zones.requireActiveZone(latitude, longitude, client);
       const lines = await client.query<{
         product_id: string;
@@ -293,6 +305,11 @@ export class CommerceService {
         );
         if (line.stock !== null) {
           await client.query('UPDATE products SET stock = stock - $2, updated_at = now() WHERE id = $1', [line.product_id, line.quantity]);
+          const left = line.stock - line.quantity;
+          // Alert once, when the stock crosses the threshold (or runs out).
+          if ((line.stock > LOW_STOCK_THRESHOLD && left <= LOW_STOCK_THRESHOLD) || (left === 0 && line.stock > 0)) {
+            lowStock.push({ name: line.name, left });
+          }
         }
       }
       await client.query(
@@ -300,8 +317,20 @@ export class CommerceService {
         [id, auth.userId],
       );
       await client.query('DELETE FROM cart_items WHERE customer_id = $1', [auth.userId]);
-      return id;
+      return { orderId: id, sellerId: first.seller_id, lowStock };
     });
+    for (const item of lowStock) {
+      await this.notifications.safely(() =>
+        this.notifications.notifyPartner(sellerId, {
+          type: 'LOW_STOCK',
+          title: item.left === 0 ? { it: 'Esaurito', en: 'Sold out' } : { it: 'Scorte basse', en: 'Low stock' },
+          body:
+            item.left === 0
+              ? { it: `"${item.name}" è esaurito: aggiorna le scorte per continuare a venderlo.`, en: `"${item.name}" is sold out: update the stock to keep selling it.` }
+              : { it: `Restano ${item.left} di "${item.name}".`, en: `Only ${item.left} of "${item.name}" left.` },
+        }),
+      );
+    }
 
     const payment = await this.payments.instructionsFor(orderId);
     const summary = await this.pool.query(`${ORDER_SUMMARY_SELECT} WHERE o.id = $1`, [orderId]);

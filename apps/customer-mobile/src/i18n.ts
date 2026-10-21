@@ -201,6 +201,9 @@ const en = {
   orderDiscount: 'Discount −{price}',
   checkoutClosedNow: 'The florist is closed now: your flowers will be prepared as soon as it opens.',
   checkoutClosedDay: 'The florist does not deliver on this day.',
+  favouriteSave: '♡ Save this florist',
+  favouriteSaved: '♥ Saved florist',
+  favouritesAll: 'All florists',
 } as const;
 
 type Key = keyof typeof en;
@@ -393,6 +396,9 @@ const it: { [K in Key]: string } = {
   orderDiscount: 'Sconto −{price}',
   checkoutClosedNow: 'Il fiorista ora è chiuso: i fiori saranno preparati appena apre.',
   checkoutClosedDay: 'In questo giorno il fiorista non consegna.',
+  favouriteSave: '♡ Salva questo fiorista',
+  favouriteSaved: '♥ Fiorista salvato',
+  favouritesAll: 'Tutti i fioristi',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

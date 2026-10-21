@@ -660,3 +660,33 @@ describe('opening hours', () => {
     assert.equal((await patchHours({})).status, 200);
   });
 });
+
+describe('favourite florists and low-stock alerts', () => {
+  it('saves favourite sellers (approved sellers only)', async () => {
+    const fan = await signUp('fan');
+    await fan.put(`/favourites/${shop.partner.id}`, {}, 204);
+    await fan.put(`/favourites/${shop.partner.id}`, {}, 204);
+    await fan.put(`/favourites/${courier.partner.id}`, {}, 404);
+    await fan.put(`/favourites/${randomUUID()}`, {}, 404);
+    const saved = await fan.get<{ items: { id: string; displayName: string }[] }>('/favourites');
+    assert.deepEqual(saved.items.map((s) => s.id), [shop.partner.id]);
+    await fan.raw('DELETE', `/favourites/${shop.partner.id}`);
+    assert.equal((await fan.get<{ items: unknown[] }>('/favourites')).items.length, 0);
+  });
+
+  it('tells the florist once when stock gets low and when it runs out', async () => {
+    const lilies = await shop.user.post<Product>('/seller/products', { name: 'Stock lilies', category: 'BOUQUET', priceMinor: 1500, stock: 5 }, 201);
+    const buyer = await signUp('stock');
+    const delivery = { recipientName: 'Ugo', recipientPhone: '+393331234567', deliveryAddress: 'Via Moroni 3, Bergamo', deliveryLocation: BERGAMO_CENTRE };
+    const lowStockTitles = async () =>
+      (await shop.user.get<{ items: { type: string; title: string; body: string }[] }>('/me/notifications')).items.filter((n) => n.type === 'LOW_STOCK' && n.body.includes('Stock lilies'));
+    await buyer.put('/cart/items', { productId: lilies.id, quantity: 1 });
+    await buyer.post('/checkout', delivery, 201); // 5 → 4: no alert
+    assert.equal((await lowStockTitles()).length, 0);
+    await buyer.put('/cart/items', { productId: lilies.id, quantity: 1 });
+    await buyer.post('/checkout', delivery, 201); // 4 → 3: low
+    await buyer.put('/cart/items', { productId: lilies.id, quantity: 3 });
+    await buyer.post('/checkout', delivery, 201); // 3 → 0: sold out
+    assert.deepEqual((await lowStockTitles()).map((n) => n.title).sort(), ['Esaurito', 'Scorte basse']);
+  });
+});

@@ -164,6 +164,17 @@ export interface NearbySeller {
   readonly rating: Rating | null;
 }
 
+/** Sellers are notified (and see a badge) when a product's stock drops to this or below. */
+export const LOW_STOCK_THRESHOLD = 3;
+
+/** A florist the customer saved. Only approved sellers are listed. */
+export interface FavouriteSeller {
+  readonly id: string;
+  readonly kind: PartnerKind;
+  readonly displayName: string;
+  readonly rating: Rating | null;
+}
+
 // ---------------------------------------------------------------- cart & checkout
 export const cartItemSchema = z.strictObject({ productId: uuid, quantity: z.number().int().min(1).max(20) });
 export type CartItemRequest = z.infer<typeof cartItemSchema>;

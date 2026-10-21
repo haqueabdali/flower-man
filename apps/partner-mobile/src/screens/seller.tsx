@@ -1,5 +1,5 @@
 import { formatPrice, productImageUri } from '@flower-man/api-client';
-import { type CustomOffer, type CustomRequestView, type OrderDetail, type OrderSummary, PRODUCT_CATEGORIES, type Product, type PublicReview, type Rating } from '@flower-man/contracts';
+import { type CustomOffer, type CustomRequestView, LOW_STOCK_THRESHOLD, type OrderDetail, type OrderSummary, PRODUCT_CATEGORIES, type Product, type PublicReview, type Rating } from '@flower-man/contracts';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Switch, View } from 'react-native';
@@ -83,6 +83,7 @@ export function ProductsScreen() {
         <Card key={product.id} onPress={() => navigation.push({ name: 'productEdit', product })}>
           {productImageUri(api, product) && <Image source={{ uri: productImageUri(api, product) as string }} style={{ height: 120, borderRadius: 8 }} resizeMode="cover" />}
           <Strong>{product.name} · {formatPrice(product.priceMinor)}</Strong>
+          {product.stock !== null && product.stock <= LOW_STOCK_THRESHOLD && <Pill label={product.stock === 0 ? t('productSoldOut') : t('productLowStock')} />}
           <Muted>{CATEGORY_LABELS[product.category]} · {product.available ? t('productAvailable') : t('productHidden')} · {product.stock === null ? t('productMadeToOrder') : t('productInStock', { count: product.stock })}</Muted>
         </Card>
       ))}

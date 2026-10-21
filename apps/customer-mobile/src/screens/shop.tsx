@@ -1,5 +1,5 @@
 import { formatPrice, productImageUri } from '@flower-man/api-client';
-import { type Cart, PRODUCT_CATEGORIES, type Product, type PublicReview, type Rating, type ZoneCheckResponse } from '@flower-man/contracts';
+import { type Cart, type FavouriteSeller, PRODUCT_CATEGORIES, type Product, type PublicReview, type Rating, type ZoneCheckResponse } from '@flower-man/contracts';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -15,9 +15,12 @@ export function ShopScreen({ emailVerified }: { emailVerified: boolean }) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [where, setWhere] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [favourites, setFavourites] = useState<FavouriteSeller[]>([]);
+  const [sellerId, setSellerId] = useState<string | null>(null);
 
   useEffect(() => {
     void currentLocation().then(setWhere);
+    void api.request<{ items: FavouriteSeller[] }>('favourites').then((result) => setFavourites(result.items)).catch(() => undefined);
   }, []);
 
   const load = useCallback(async () => {
@@ -28,9 +31,9 @@ export function ShopScreen({ emailVerified }: { emailVerified: boolean }) {
       setProducts([]);
       return;
     }
-    const query = `catalog/products?lat=${where.latitude}&lng=${where.longitude}${category ? `&category=${category}` : ''}`;
+    const query = `catalog/products?lat=${where.latitude}&lng=${where.longitude}${category ? `&category=${category}` : ''}${sellerId ? `&sellerId=${sellerId}` : ''}`;
     setProducts((await api.request<{ items: Product[] }>(query, { auth: false })).items);
-  }, [where, category]);
+  }, [where, category, sellerId]);
 
   useEffect(() => {
     void attempt(load);
@@ -41,6 +44,17 @@ export function ShopScreen({ emailVerified }: { emailVerified: boolean }) {
       {!emailVerified && <VerifyEmailBanner />}
       {zone && !zone.served && <Card><Strong>{t('shopNotServedTitle')}</Strong><Muted>{t('shopNotServedBody')}</Muted></Card>}
       {zone?.zone && <Muted>{t('shopDeliveringIn', { zone: zone.zone.name, fee: formatPrice(zone.zone.deliveryFeeMinor) })}</Muted>}
+      {favourites.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {[null, ...favourites].map((seller) => (
+            <Pressable key={seller?.id ?? 'all'} onPress={() => setSellerId(seller?.id ?? null)}>
+              <Text style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: sellerId === (seller?.id ?? null) ? colors.brand : '#fff', color: sellerId === (seller?.id ?? null) ? '#fff' : colors.ink, borderWidth: 1, borderColor: colors.line }}>
+                {seller ? `♥ ${seller.displayName}` : t('favouritesAll')}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
         {[null, ...PRODUCT_CATEGORIES].map((value) => (
           <Pressable key={value ?? 'all'} onPress={() => setCategory(value)}>
@@ -118,6 +132,7 @@ export function ProductScreen({ product }: { product: Product }) {
           })
         }
       />
+      <FavouriteButton sellerId={product.sellerId} />
       <SellerReviews sellerId={product.sellerId} />
     </Screen>
   );
@@ -144,5 +159,28 @@ function SellerReviews({ sellerId }: { sellerId: string }) {
         </View>
       ))}
     </Card>
+  );
+}
+
+function FavouriteButton({ sellerId }: { sellerId: string }) {
+  const [saved, setSaved] = useState<boolean | null>(null);
+  useEffect(() => {
+    void api
+      .request<{ items: FavouriteSeller[] }>('favourites')
+      .then((result) => setSaved(result.items.some((seller) => seller.id === sellerId)))
+      .catch(() => undefined);
+  }, [sellerId]);
+  if (saved === null) return null;
+  return (
+    <Button
+      kind="secondary"
+      title={saved ? t('favouriteSaved') : t('favouriteSave')}
+      onPress={() =>
+        attempt(async () => {
+          await api.request(`favourites/${sellerId}`, { method: saved ? 'DELETE' : 'PUT' });
+          setSaved(!saved);
+        })
+      }
+    />
   );
 }

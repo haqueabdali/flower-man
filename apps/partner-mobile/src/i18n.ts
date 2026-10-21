@@ -201,6 +201,8 @@ const en = {
   dayFri: 'Friday',
   daySat: 'Saturday',
   daySun: 'Sunday',
+  productLowStock: 'Low stock',
+  productSoldOut: 'Sold out',
 } as const;
 
 type Key = keyof typeof en;
@@ -396,6 +398,8 @@ const it: { [K in Key]: string } = {
   dayFri: 'Venerdì',
   daySat: 'Sabato',
   daySun: 'Domenica',
+  productLowStock: 'Scorte basse',
+  productSoldOut: 'Esaurito',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

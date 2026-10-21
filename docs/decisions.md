@@ -376,3 +376,10 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   time zone. "As soon as possible" stays allowed (the order is prepared when the florist opens; the app says so).
 - The customer app only offers slots inside the cart seller's hours (`Cart.sellerOpeningHours`); the partner app has an
   hours editor for owners. Couriers see the requested time on each job.
+
+## ADR-024: Favourite florists and low-stock alerts
+
+- Customers save florists (`/favourites`, table `customer_favourites`, migration 0018). The customer app shows saved florists
+  as filters above the catalogue and a save button on each product page. Only approved sellers can be saved or listed.
+- Checkout notifies the florist when a product's stock crosses `LOW_STOCK_THRESHOLD` (3, shared via the contracts) and when it
+  runs out. Alerts fire on the crossing only, so they are not repeated on every order. The partner app marks those products.

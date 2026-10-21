@@ -9,6 +9,7 @@ import {
   type CreateCustomRequest,
   createCustomRequestSchema,
   type CustomRequestView,
+  type FavouriteSeller,
   type OrderDetail,
   type OrderSummary,
   type PaymentInstructions,
@@ -25,6 +26,7 @@ import type { Response } from 'express';
 import { type AuthenticatedContext, AuthGuard, CurrentAuth, RequireCapabilities } from '../auth/auth.guard.js';
 import { UuidPipe } from '../common/uuid-param.pipe.js';
 import { ZodBodyPipe } from '../common/zod-body.pipe.js';
+import { CatalogService } from '../catalog/catalog.service.js';
 import { CustomRequestsService } from '../custom-requests/custom-requests.service.js';
 import { DeliveryService } from '../delivery/delivery.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
@@ -40,7 +42,25 @@ export class CustomerController {
     private readonly customRequests: CustomRequestsService,
     private readonly delivery: DeliveryService,
     private readonly reviews: ReviewsService,
+    private readonly catalog: CatalogService,
   ) {}
+
+  @Get('favourites')
+  async favourites(@CurrentAuth() auth: AuthenticatedContext): Promise<{ items: FavouriteSeller[] }> {
+    return { items: await this.catalog.favourites(auth.userId) };
+  }
+
+  @Put('favourites/:sellerId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async addFavourite(@CurrentAuth() auth: AuthenticatedContext, @Param('sellerId', UuidPipe) sellerId: string): Promise<void> {
+    await this.catalog.addFavourite(auth.userId, sellerId);
+  }
+
+  @Delete('favourites/:sellerId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeFavourite(@CurrentAuth() auth: AuthenticatedContext, @Param('sellerId', UuidPipe) sellerId: string): Promise<void> {
+    await this.catalog.removeFavourite(auth.userId, sellerId);
+  }
 
   @Get('cart')
   async cart(@CurrentAuth() auth: AuthenticatedContext): Promise<Cart> {

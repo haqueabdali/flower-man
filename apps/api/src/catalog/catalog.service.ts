@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { NearbySeller, Product, ProductRequest, UpdateProductRequest } from '@flower-man/contracts';
+import type { FavouriteSeller, NearbySeller, Product, ProductRequest, UpdateProductRequest } from '@flower-man/contracts';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import pg from 'pg';
 
@@ -170,6 +170,33 @@ export class CatalogService {
       [zone.id, query.longitude, query.latitude, query.category ?? null, query.search?.slice(0, 80) ?? null, query.sellerId ?? null],
     );
     return result.rows.map(toProduct);
+  }
+
+  async favourites(customerId: string): Promise<FavouriteSeller[]> {
+    const result = await this.pool.query<{ id: string; kind: FavouriteSeller['kind']; display_name: string; rating_sum: number; rating_count: number }>(
+      `SELECT p.id, p.kind, p.display_name, p.rating_sum, p.rating_count
+         FROM customer_favourites f JOIN partner_accounts p ON p.id = f.seller_id
+        WHERE f.customer_id = $1 AND p.verification_status = 'APPROVED' ORDER BY f.created_at DESC`,
+      [customerId],
+    );
+    return result.rows.map((row) => ({ id: row.id, kind: row.kind, displayName: row.display_name, rating: toRating(row.rating_sum, row.rating_count) }));
+  }
+
+  async addFavourite(customerId: string, sellerId: string): Promise<void> {
+    const result = await this.pool.query(
+      `INSERT INTO customer_favourites (customer_id, seller_id)
+       SELECT $1, id FROM partner_accounts WHERE id = $2 AND verification_status = 'APPROVED' AND kind IN ('SHOP', 'FREELANCE_SELLER')
+       ON CONFLICT DO NOTHING`,
+      [customerId, sellerId],
+    );
+    if (result.rowCount === 0) {
+      const exists = await this.pool.query('SELECT 1 FROM customer_favourites WHERE customer_id = $1 AND seller_id = $2', [customerId, sellerId]);
+      if (exists.rowCount !== 1) throw new NotFoundException('Seller not found.');
+    }
+  }
+
+  async removeFavourite(customerId: string, sellerId: string): Promise<void> {
+    await this.pool.query('DELETE FROM customer_favourites WHERE customer_id = $1 AND seller_id = $2', [customerId, sellerId]);
   }
 
   async nearbySellers(latitude: number, longitude: number): Promise<NearbySeller[]> {
