@@ -1,9 +1,10 @@
 import { formatPrice } from '@flower-man/api-client';
 import type { OrderDetail, OrderSummary, PaymentInstructions, ReorderResponse } from '@flower-man/contracts';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, Linking, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 
 import { api } from '../api';
+import { AuthImage } from '../auth-image';
 import { locale, orderStatusLabel, t } from '../i18n';
 import { useNavigation } from '../navigation';
 import { attempt, Body, Button, Card, Field, Loading, Muted, Screen, StarPicker, stars, Strong } from '../ui';
@@ -160,20 +161,10 @@ function ReviewCard({ order, onDone }: { order: OrderDetail; onDone: (order: Ord
 
 /** The courier's proof photo, loaded with the customer's token (the endpoint is private to this order's customer). */
 function DeliveryPhoto({ orderId }: { orderId: string }) {
-  const [token, setToken] = useState<string | null>(null);
-  useEffect(() => {
-    void api.accessToken().then(setToken);
-  }, []);
-  if (!token) return null;
   return (
     <>
       <Muted>{t('orderPhoto')}</Muted>
-      <Image
-        source={{ uri: `${api.baseUrl}/orders/${orderId}/delivery-proof`, headers: { Authorization: `Bearer ${token}` } }}
-        style={{ height: 220, borderRadius: 8 }}
-        resizeMode="cover"
-        accessibilityLabel={t('orderPhotoLabel')}
-      />
+      <AuthImage path={`orders/${orderId}/delivery-proof`} height={220} label={t('orderPhotoLabel')} />
     </>
   );
 }

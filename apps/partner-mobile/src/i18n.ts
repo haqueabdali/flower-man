@@ -203,6 +203,7 @@ const en = {
   daySun: 'Sunday',
   productLowStock: 'Low stock',
   productSoldOut: 'Sold out',
+  offerPhotoHint: 'Show the customer a photo of a similar bouquet: offers with a photo are chosen more often.',
 } as const;
 
 type Key = keyof typeof en;
@@ -400,6 +401,7 @@ const it: { [K in Key]: string } = {
   daySun: 'Domenica',
   productLowStock: 'Scorte basse',
   productSoldOut: 'Esaurito',
+  offerPhotoHint: 'Mostra al cliente la foto di un mazzo simile: le offerte con foto vengono scelte più spesso.',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

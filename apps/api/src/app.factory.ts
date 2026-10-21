@@ -39,6 +39,7 @@ export async function createApp(config: AppConfig): Promise<NestExpressApplicati
     express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '8mb' }),
   );
   app.use(`/${API_PREFIX}/seller/products/:id/image`, express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '5mb' }));
+  app.use(`/${API_PREFIX}/seller/custom-requests/:id/offer/image`, express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '5mb' }));
   app.useBodyParser('json', { limit: '100kb' });
   app.enableCors({
     // false = no CORS headers at all: browsers on other origins are refused.

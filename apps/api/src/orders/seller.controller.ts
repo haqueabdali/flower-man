@@ -12,7 +12,8 @@ import {
   sellerRejectSchema,
 } from '@flower-man/contracts';
 import { ORDER_STATUSES } from '@flower-man/domain';
-import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 
 import { type AuthenticatedContext, AuthGuard, CurrentAuth } from '../auth/auth.guard.js';
 import { UuidPipe } from '../common/uuid-param.pipe.js';
@@ -90,6 +91,12 @@ export class SellerController {
     @Headers(SELLER_HEADER) sellerId?: string,
   ): Promise<CustomOffer> {
     return this.customRequests.submitOffer(await this.partners.requireSeller(auth.userId, sellerId), id, body);
+  }
+
+  /** Raw image bytes (JPEG, PNG or WebP, max 5 MB) for the seller's own open offer. */
+  @Put('custom-requests/:id/offer/image')
+  async offerImage(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string, @Req() request: Request, @Headers(SELLER_HEADER) sellerId?: string): Promise<CustomOffer> {
+    return this.customRequests.setOfferImage(await this.partners.requireSeller(auth.userId, sellerId), id, request.body);
   }
 
   @Post('custom-requests/:id/offer/withdraw')

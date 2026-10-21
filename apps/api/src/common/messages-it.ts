@@ -92,6 +92,7 @@ const EXACT: Readonly<Record<string, string>> = {
   'An offer has already been selected, or the request is closed.': "È già stata scelta un'offerta, oppure la richiesta è chiusa.",
   'This offer is no longer available.': 'Questa offerta non è più disponibile.',
   'There is no submitted offer to withdraw.': 'Non ci sono offerte inviate da ritirare.',
+  'There is no submitted offer to add a photo to.': 'Non ci sono offerte inviate a cui aggiungere una foto.',
   'Your offer can no longer be changed.': 'La tua offerta non può più essere modificata.',
   'This request is not open in your area.': 'Questa richiesta non è aperta nella tua zona.',
   'availableFrom must not be in the past.': 'La disponibilità non può essere nel passato.',

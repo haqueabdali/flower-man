@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { CheckoutResponse, CreateCustomRequest, CustomOffer, CustomOfferRequest, CustomRequestView } from '@flower-man/contracts';
 import { basisPointsOf } from '@flower-man/domain';
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
@@ -13,7 +15,9 @@ import { euros, NotificationsService } from '../notifications/notifications.serv
 import { requireVerifiedEmail, validateRequestedDelivery } from '../orders/commerce.service.js';
 import { ORDER_SUMMARY_SELECT, toOrderSummary } from '../orders/order-views.js';
 import type { ActingPartner } from '../partners/partners.service.js';
+import { MAX_PRODUCT_IMAGE_BYTES } from '../catalog/catalog.service.js';
 import { PaymentsService } from '../payments/payments.service.js';
+import { detectImageType, OBJECT_STORAGE, type ObjectStorage } from '../storage/object-storage.js';
 import { ZonesService } from '../zones/zones.service.js';
 
 interface RequestRow {
@@ -42,6 +46,8 @@ interface OfferRow {
   available_from: Date;
   notes: string | null;
   status: CustomOffer['status'];
+  request_id: string;
+  image_updated_at: Date | null;
 }
 
 const REQUEST_COLUMNS = `r.id, r.occasion, r.flower_preferences, r.colour_preferences, r.notes, r.budget_minor,
@@ -59,6 +65,7 @@ const toOffer = (row: OfferRow): CustomOffer => ({
   availableFrom: row.available_from.toISOString(),
   notes: row.notes,
   status: row.status,
+  imagePath: row.image_updated_at ? `custom-requests/${row.request_id}/offers/${row.id}/image?v=${row.image_updated_at.getTime()}` : null,
 });
 
 const toView = (row: RequestRow, offers: CustomOffer[]): CustomRequestView => ({
@@ -85,7 +92,47 @@ export class CustomRequestsService {
     private readonly zones: ZonesService,
     private readonly payments: PaymentsService,
     private readonly notifications: NotificationsService,
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
   ) {}
+
+  /** The seller's photo for their own, still open offer. The type comes from the bytes. */
+  async setOfferImage(seller: ActingPartner, requestId: string, bytes: unknown): Promise<CustomOffer> {
+    if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
+      throw new BadRequestException('Send the photo as the request body (Content-Type image/jpeg, image/png or image/webp).');
+    }
+    if (bytes.length > MAX_PRODUCT_IMAGE_BYTES) {
+      throw new BadRequestException('Photo too large (max 5 MB).');
+    }
+    const type = detectImageType(bytes);
+    if (!type) {
+      throw new BadRequestException('The photo must be a JPEG, PNG or WebP image.');
+    }
+    const found = await this.pool.query<{ id: string }>(`SELECT id FROM custom_offers WHERE request_id = $1 AND seller_id = $2 AND status = 'SUBMITTED'`, [requestId, seller.partnerId]);
+    const offerId = found.rows[0]?.id;
+    if (!offerId) {
+      throw new NotFoundException('There is no submitted offer to add a photo to.');
+    }
+    const key = `offer-images/${offerId}/${randomUUID()}.${type.split('/')[1] as string}`;
+    await this.storage.put(key, bytes, type);
+    await this.pool.query(`UPDATE custom_offers SET image_key = $2, image_content_type = $3, image_updated_at = now() WHERE id = $1 AND status = 'SUBMITTED'`, [offerId, key, type]);
+    return (await this.offers(requestId, true)).find((offer) => offer.id === offerId) as CustomOffer;
+  }
+
+  /** Only the request's customer and the members of the offering seller can see the photo. */
+  async offerImage(userId: string, requestId: string, offerId: string): Promise<{ bytes: Buffer; contentType: string }> {
+    const result = await this.pool.query<{ image_key: string; image_content_type: string }>(
+      `SELECT o.image_key, o.image_content_type
+         FROM custom_offers o JOIN custom_requests r ON r.id = o.request_id
+        WHERE o.id = $2 AND o.request_id = $1 AND o.image_key IS NOT NULL
+          AND (r.customer_id = $3 OR EXISTS (SELECT 1 FROM partner_members m WHERE m.partner_id = o.seller_id AND m.user_id = $3))`,
+      [requestId, offerId, userId],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      throw new NotFoundException('Photo not found.');
+    }
+    return { bytes: await this.storage.get(row.image_key), contentType: row.image_content_type };
+  }
 
   // ---------------------------------------------------------------- customer
   async create(auth: AuthenticatedContext, input: CreateCustomRequest): Promise<CustomRequestView> {
@@ -307,13 +354,13 @@ export class CustomRequestsService {
     return Promise.all(result.rows.map(async (row) => ({ ...toView(row, await this.offers(row.id)), customerEmail: row.customer_email })));
   }
 
-  private async offers(requestId: string): Promise<CustomOffer[]> {
+  private async offers(requestId: string, includeWithdrawn = false): Promise<CustomOffer[]> {
     const result = await this.pool.query<OfferRow>(
       `SELECT o.id, o.seller_id, p.display_name AS seller_name, p.kind AS seller_kind, o.description, o.price_minor,
-              o.preparation_minutes, o.available_from, o.notes, o.status
+              o.preparation_minutes, o.available_from, o.notes, o.status, o.request_id, o.image_updated_at
          FROM custom_offers o JOIN partner_accounts p ON p.id = o.seller_id
-        WHERE o.request_id = $1 AND o.status <> 'WITHDRAWN' ORDER BY o.price_minor`,
-      [requestId],
+        WHERE o.request_id = $1 AND (o.status <> 'WITHDRAWN' OR $2) ORDER BY o.price_minor`,
+      [requestId, includeWithdrawn],
     );
     return result.rows.map(toOffer);
   }

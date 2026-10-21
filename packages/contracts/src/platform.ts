@@ -404,6 +404,8 @@ export interface CustomOffer {
   readonly availableFrom: string;
   readonly notes: string | null;
   readonly status: 'SUBMITTED' | 'WITHDRAWN' | 'ACCEPTED' | 'REJECTED';
+  /** Photo of the proposed bouquet, relative to the API base; private to the request's customer and the offering seller. */
+  readonly imagePath: string | null;
 }
 
 export interface CustomRequestView {

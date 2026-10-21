@@ -1,7 +1,7 @@
 import { formatPrice, productImageUri } from '@flower-man/api-client';
 import { type CustomOffer, type CustomRequestView, LOW_STOCK_THRESHOLD, type OrderDetail, type OrderSummary, PRODUCT_CATEGORIES, type Product, type PublicReview, type Rating } from '@flower-man/contracts';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Switch, View } from 'react-native';
 
 import { api } from '../api';
@@ -142,40 +142,71 @@ export function ProductEditScreen({ product }: { product: Product | null }) {
 }
 
 /** Photo from the camera or the gallery, cropped square and compressed before upload (max 5 MB on the API). */
-function ProductPhotoEditor({ product }: { product: Product }) {
-  const [current, setCurrent] = useState(product);
-  const [busy, setBusy] = useState(false);
-  const uri = productImageUri(api, current);
+/** A square, compressed photo from the camera or the gallery (null when cancelled), ready to upload. */
+async function choosePhoto(source: 'camera' | 'gallery'): Promise<{ data: Blob; contentType: string } | null> {
+  const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, exif: false };
+  if (source === 'camera') {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) throw new Error(t('photoCameraNeeded'));
+  }
+  const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+  const asset = result.canceled ? undefined : result.assets[0];
+  if (!asset) return null;
+  return { data: await (await fetch(asset.uri)).blob(), contentType: asset.mimeType ?? 'image/jpeg' };
+}
 
+/** Photo card with camera/gallery buttons; `upload` sends the bytes and `image` shows the current photo. */
+function PhotoEditor({ image, hint, upload }: { image: ReactNode; hint: string; upload: (photo: { data: Blob; contentType: string }) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
   const pick = (source: 'camera' | 'gallery') =>
     attempt(async () => {
-      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7, exif: false };
-      if (source === 'camera') {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) throw new Error(t('photoCameraNeeded'));
-      }
-      const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
-      const asset = result.canceled ? undefined : result.assets[0];
-      if (!asset) return;
+      const photo = await choosePhoto(source);
+      if (!photo) return;
       setBusy(true);
       try {
-        const blob = await (await fetch(asset.uri)).blob();
-        setCurrent(await api.request<Product>(`seller/products/${product.id}/image`, { method: 'PUT', binary: { data: blob, contentType: asset.mimeType ?? 'image/jpeg' } }));
+        await upload(photo);
       } finally {
         setBusy(false);
       }
     });
-
   return (
     <Card>
       <Strong>{t('photoTitle')}</Strong>
-      {uri ? <Image source={{ uri }} style={{ height: 200, borderRadius: 8 }} resizeMode="cover" /> : <Muted>{t('photoHint')}</Muted>}
+      {image ?? <Muted>{hint}</Muted>}
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Button kind="secondary" title={t('photoTake')} disabled={busy} onPress={() => pick('camera')} />
         <Button kind="secondary" title={t('photoGallery')} disabled={busy} onPress={() => pick('gallery')} />
       </View>
       {busy && <Muted>{t('photoUploading')}</Muted>}
     </Card>
+  );
+}
+
+function ProductPhotoEditor({ product }: { product: Product }) {
+  const [current, setCurrent] = useState(product);
+  const uri = productImageUri(api, current);
+  return (
+    <PhotoEditor
+      hint={t('photoHint')}
+      image={uri ? <Image source={{ uri }} style={{ height: 200, borderRadius: 8 }} resizeMode="cover" /> : null}
+      upload={async (photo) => setCurrent(await api.request<Product>(`seller/products/${product.id}/image`, { method: 'PUT', binary: photo }))}
+    />
+  );
+}
+
+/** The offer photo is private (customer + this seller), so it is loaded with the signed-in token. */
+function OfferPhotoEditor({ requestId, offer }: { requestId: string; offer: CustomOffer }) {
+  const [current, setCurrent] = useState(offer);
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    void api.accessToken().then(setToken);
+  }, [current.imagePath]);
+  return (
+    <PhotoEditor
+      hint={t('offerPhotoHint')}
+      image={current.imagePath && token ? <Image source={{ uri: `${api.baseUrl}/${current.imagePath}`, headers: { Authorization: `Bearer ${token}` } }} style={{ height: 200, borderRadius: 8 }} resizeMode="cover" /> : null}
+      upload={async (photo) => setCurrent(await api.request<CustomOffer>(`seller/custom-requests/${requestId}/offer/image`, { method: 'PUT', binary: photo }))}
+    />
   );
 }
 
@@ -239,6 +270,7 @@ export function OfferScreen({ request }: { request: FeedItem }) {
           })
         }
       />
+      {request.myOffer?.status === 'SUBMITTED' && <OfferPhotoEditor requestId={request.id} offer={request.myOffer} />}
       {request.myOffer?.status === 'SUBMITTED' && <Button kind="danger" title={t('offerWithdraw')} onPress={() => attempt(async () => { await api.request(`seller/custom-requests/${request.id}/offer/withdraw`, { method: 'POST' }); navigation.reset({ name: 'requestFeed' }); })} />}
     </Screen>
   );

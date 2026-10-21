@@ -3,6 +3,7 @@ import type { CheckoutResponse, CustomRequestView } from '@flower-man/contracts'
 import { useCallback, useEffect, useState } from 'react';
 
 import { api } from '../api';
+import { AuthImage } from '../auth-image';
 import { locale, offerStatusLabel, requestStatusLabel, t } from '../i18n';
 import { currentLocation } from '../location';
 import { useNavigation } from '../navigation';
@@ -95,6 +96,7 @@ export function RequestScreen({ requestId }: { requestId: string }) {
       {request.offers.length === 0 && request.status === 'OPEN' && <Muted>{t('requestWaiting')}</Muted>}
       {request.offers.map((offer) => (
         <Card key={offer.id}>
+          {offer.imagePath && <AuthImage path={offer.imagePath} height={200} label={offer.description} />}
           <Strong>{offer.sellerName} · {formatPrice(offer.priceMinor)}</Strong>
           <Body>{offer.description}</Body>
           <Muted>{t('requestReadyIn', { hours: Math.round(offer.preparationMinutes / 60) })}{offer.notes ? ` · ${offer.notes}` : ''}</Muted>

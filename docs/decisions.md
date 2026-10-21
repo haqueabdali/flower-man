@@ -383,3 +383,11 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   as filters above the catalogue and a save button on each product page. Only approved sellers can be saved or listed.
 - Checkout notifies the florist when a product's stock crosses `LOW_STOCK_THRESHOLD` (3, shared via the contracts) and when it
   runs out. Alerts fire on the crossing only, so they are not repeated on every order. The partner app marks those products.
+
+## ADR-025: Photos on custom-bouquet offers
+
+- A seller can attach a photo to their open offer: `PUT /seller/custom-requests/:id/offer/image` (raw JPEG/PNG/WebP,
+  max 5 MB, type from the bytes), stored in object storage (`offer-images/…`, migration 0019).
+- Unlike product photos, offer photos are private: `GET /custom-requests/:id/offers/:offerId/image` answers only the
+  request's customer and members of the offering seller (404 for anyone else). The apps load it with the bearer token.
+- The partner app shares one photo picker (camera or gallery, square, compressed) between products and offers.

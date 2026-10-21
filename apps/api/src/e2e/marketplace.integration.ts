@@ -690,3 +690,32 @@ describe('favourite florists and low-stock alerts', () => {
     assert.deepEqual((await lowStockTitles()).map((n) => n.title).sort(), ['Esaurito', 'Scorte basse']);
   });
 });
+
+describe('custom offer photos', () => {
+  it('lets the seller show the proposed bouquet, privately to the customer', async () => {
+    const customer = await signUp('offer-photo');
+    const start = new Date(Date.now() + 24 * 3_600_000);
+    const request = await customer.post<CustomRequestView>('/custom-requests', {
+      occasion: 'Birthday', budgetMinor: 4000,
+      deliveryWindowStart: start.toISOString(), deliveryWindowEnd: new Date(start.getTime() + 3 * 3_600_000).toISOString(),
+      recipientName: 'Lia', recipientPhone: '+393335554433', deliveryAddress: 'Via Pignolo 50, 24121 Bergamo BG', deliveryLocation: BERGAMO_CENTRE,
+    }, 201);
+    const upload = (who: Client, body: Buffer) => who.raw('PUT', `/seller/custom-requests/${request.id}/offer/image`, body, { 'Content-Type': 'image/jpeg' });
+    assert.equal((await upload(shop.user, JPEG)).status, 404, 'no offer yet');
+    await shop.user.post(`/seller/custom-requests/${request.id}/offer`, { description: 'Sunny gerberas and roses', priceMinor: 3800, preparationMinutes: 60, availableFrom: new Date(Date.now() + 3_600_000).toISOString() }, 201);
+    assert.equal((await upload(shop.user, Buffer.from('nope'))).status, 400);
+    const uploaded = await upload(shop.user, JPEG);
+    assert.equal(uploaded.status, 200, await uploaded.clone().text());
+    const offer = (await uploaded.json()) as { id: string; imagePath: string | null };
+    assert.match(offer.imagePath ?? '', new RegExp(`^custom-requests/${request.id}/offers/${offer.id}/image\\?v=\\d+$`));
+
+    const seen = await customer.get<CustomRequestView>(`/custom-requests/${request.id}`);
+    assert.equal(seen.offers[0]?.imagePath, offer.imagePath);
+    const image = await customer.raw('GET', `/${offer.imagePath}`);
+    assert.equal(image.status, 200);
+    assert.deepEqual(Buffer.from(await image.arrayBuffer()), JPEG);
+    assert.equal((await shop.user.raw('GET', `/${offer.imagePath}`)).status, 200, 'the offering seller');
+    assert.equal((await freelancer.user.raw('GET', `/${offer.imagePath}`)).status, 404, 'another seller');
+    assert.equal((await (await signUp('nosy')).raw('GET', `/${offer.imagePath}`)).status, 404, 'another customer');
+  });
+});

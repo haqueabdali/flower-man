@@ -164,6 +164,16 @@ export class CustomerController {
     return this.customRequests.getForCustomer(auth.userId, id);
   }
 
+  /** Offer photo for the request's customer (and the offering seller's members). */
+  @Get('custom-requests/:id/offers/:offerId/image')
+  async offerImage(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string, @Param('offerId', UuidPipe) offerId: string, @Res() response: Response): Promise<void> {
+    const { bytes, contentType } = await this.customRequests.offerImage(auth.userId, id, offerId);
+    response.setHeader('Content-Type', contentType);
+    response.setHeader('Cache-Control', 'private, max-age=86400');
+    response.setHeader('Content-Security-Policy', "default-src 'none'");
+    response.send(bytes);
+  }
+
   @Post('custom-requests/:id/cancel')
   @HttpCode(HttpStatus.OK)
   async cancelRequest(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string): Promise<CustomRequestView> {
