@@ -205,6 +205,8 @@ const en = {
   productSoldOut: 'Sold out',
   offerPhotoHint: 'Show the customer a photo of a similar bouquet: offers with a photo are chosen more often.',
   jobTip: '+ {price} tip',
+  accountExport: 'Email me a copy of my data',
+  accountExportSent: 'We sent a copy of your data to your email.',
 } as const;
 
 type Key = keyof typeof en;
@@ -404,6 +406,8 @@ const it: { [K in Key]: string } = {
   productSoldOut: 'Esaurito',
   offerPhotoHint: 'Mostra al cliente la foto di un mazzo simile: le offerte con foto vengono scelte più spesso.',
   jobTip: '+ {price} di mancia',
+  accountExport: 'Inviami una copia dei miei dati',
+  accountExportSent: 'Ti abbiamo inviato una copia dei tuoi dati via email.',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

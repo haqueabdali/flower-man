@@ -24,6 +24,8 @@ import { createPaymentProvider, createStripeClient, PAYMENT_PROVIDER } from './p
 import { PaymentsController } from './payments/payments.controller.js';
 import { STRIPE_CLIENT } from './payments/payments.module-tokens.js';
 import { PaymentsService } from './payments/payments.service.js';
+import { ReceiptsService } from './orders/receipts.service.js';
+import { DataExportService } from './me/data-export.service.js';
 import { PromoService } from './orders/promo.service.js';
 import { ReviewsService } from './reviews/reviews.service.js';
 import { createObjectStorage, OBJECT_STORAGE } from './storage/object-storage.js';
@@ -60,6 +62,8 @@ import { ZonesService } from './zones/zones.service.js';
     MaintenanceService,
     ReviewsService,
     PromoService,
+    ReceiptsService,
+    DataExportService,
     { provide: PAYMENT_PROVIDER, inject: [APP_CONFIG], useFactory: (config: AppConfig) => createPaymentProvider(config.payments) },
     { provide: STRIPE_CLIENT, inject: [APP_CONFIG], useFactory: (config: AppConfig) => createStripeClient(config.payments) },
     { provide: OBJECT_STORAGE, inject: [APP_CONFIG], useFactory: (config: AppConfig) => createObjectStorage(config.storage) },

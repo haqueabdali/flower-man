@@ -79,6 +79,13 @@ export function OrderScreen({ orderId }: { orderId: string }) {
         </Card>
       )}
       {order.canReview && <ReviewCard order={order} onDone={setOrder} />}
+      {order.status !== 'PENDING_PAYMENT' && (
+        <Button
+          kind="secondary"
+          title={t('orderReceipt')}
+          onPress={() => attempt(async () => { await api.request(`orders/${order.id}/receipt`, { method: 'POST' }); Alert.alert(t('orderReceiptSent')); })}
+        />
+      )}
       {order.source === 'CATALOG' && (order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'REFUNDED') && (
         <Button
           kind="secondary"

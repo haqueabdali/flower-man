@@ -5,11 +5,23 @@ import pg from 'pg';
 import { type AuthenticatedContext, AuthGuard, CurrentAuth } from '../auth/auth.guard.js';
 import { ZodBodyPipe } from '../common/zod-body.pipe.js';
 import { PG_POOL } from '../database/database.module.js';
+import { DataExportService } from './data-export.service.js';
 
 @Controller('me')
 @UseGuards(AuthGuard)
 export class MeController {
-  constructor(@Inject(PG_POOL) private readonly pool: pg.Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pool: pg.Pool,
+    private readonly exports: DataExportService,
+  ) {}
+
+  /** Privacy: emails a JSON copy of the user's personal data to their own verified address (once per hour). */
+  @Post('data-export')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async dataExport(@CurrentAuth() auth: AuthenticatedContext): Promise<{ status: 'SENT' }> {
+    await this.exports.emailExport(auth.userId);
+    return { status: 'SENT' };
+  }
 
   /** Privacy: asks for the account and its personal data to be deleted (processed by an administrator). */
   @Post('deletion-request')

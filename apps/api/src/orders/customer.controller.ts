@@ -30,6 +30,7 @@ import { CatalogService } from '../catalog/catalog.service.js';
 import { CustomRequestsService } from '../custom-requests/custom-requests.service.js';
 import { DeliveryService } from '../delivery/delivery.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
+import { ReceiptsService } from './receipts.service.js';
 import { CommerceService } from './commerce.service.js';
 
 /** Customer-facing commerce. Every route acts only on the signed-in customer's own data. */
@@ -43,6 +44,7 @@ export class CustomerController {
     private readonly delivery: DeliveryService,
     private readonly reviews: ReviewsService,
     private readonly catalog: CatalogService,
+    private readonly receipts: ReceiptsService,
   ) {}
 
   @Get('favourites')
@@ -116,6 +118,14 @@ export class CustomerController {
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader('Content-Security-Policy', "default-src 'none'");
     response.send(bytes);
+  }
+
+  /** Emails the order summary (again) to the customer's own address. */
+  @Post('orders/:id/receipt')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async receipt(@CurrentAuth() auth: AuthenticatedContext, @Param('id', UuidPipe) id: string): Promise<{ status: 'SENT' }> {
+    await this.receipts.send(id, auth.userId);
+    return { status: 'SENT' };
   }
 
   @Post('orders/:id/reorder')

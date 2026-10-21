@@ -208,6 +208,10 @@ const en = {
   checkoutTipNone: 'No tip',
   checkoutTipNote: 'The whole tip goes to the courier.',
   orderTip: 'Courier tip {price}',
+  accountExport: 'Email me a copy of my data',
+  accountExportSent: 'We sent a copy of your data to your email.',
+  orderReceipt: 'Email me the order summary',
+  orderReceiptSent: 'We sent the order summary to your email.',
 } as const;
 
 type Key = keyof typeof en;
@@ -407,6 +411,10 @@ const it: { [K in Key]: string } = {
   checkoutTipNone: 'Nessuna',
   checkoutTipNote: 'La mancia va interamente al corriere.',
   orderTip: 'Mancia al corriere {price}',
+  accountExport: 'Inviami una copia dei miei dati',
+  accountExportSent: 'Ti abbiamo inviato una copia dei tuoi dati via email.',
+  orderReceipt: 'Inviami il riepilogo via email',
+  orderReceiptSent: 'Ti abbiamo inviato il riepilogo dell’ordine via email.',
 };
 
 const deviceLocale = Intl.DateTimeFormat().resolvedOptions().locale;

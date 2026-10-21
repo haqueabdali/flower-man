@@ -8,6 +8,7 @@ import { PG_POOL } from '../database/database.module.js';
 import { withTransaction } from '../database/transaction.js';
 import { LedgerService } from '../ledger/ledger.service.js';
 import { euros, NotificationsService } from '../notifications/notifications.service.js';
+import { ReceiptsService } from '../orders/receipts.service.js';
 import { lockOrder, transitionOrder } from '../orders/order-workflow.js';
 import { PAYMENT_PROVIDER, type PaymentProvider } from './payment-provider.js';
 
@@ -30,6 +31,7 @@ export class PaymentsService {
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
     private readonly ledger: LedgerService,
     private readonly notifications: NotificationsService,
+    private readonly receipts: ReceiptsService,
   ) {}
 
   /**
@@ -95,6 +97,7 @@ export class PaymentsService {
       return;
     }
     const { order } = outcome;
+    await this.receipts.sendSafely(order.id);
     await this.notifications.safely(async () => {
       await this.notifications.notifyUser(order.customerId, {
         type: 'ORDER_PAID',

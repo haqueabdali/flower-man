@@ -20,6 +20,7 @@ const EXACT: Readonly<Record<string, string>> = {
   'Use international format, e.g. +393331234567.': 'Usa il formato internazionale, ad es. +393331234567.',
   'Please verify your email address before placing an order.': 'Conferma il tuo indirizzo email prima di ordinare.',
   'A deletion request is already pending.': "C'è già una richiesta di cancellazione in corso.",
+  'You can request a copy of your data once per hour, after confirming your email.': 'Puoi richiedere una copia dei tuoi dati una volta all’ora, dopo aver confermato l’email.',
   'Expected an Expo push token.': 'Token di notifica non valido.',
   // generic
   'Invalid identifier.': 'Identificativo non valido.',

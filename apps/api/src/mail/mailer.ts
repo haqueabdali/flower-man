@@ -3,10 +3,17 @@ import nodemailer from 'nodemailer';
 
 import type { MailConfig } from '../config/app-config.js';
 
+export interface MailAttachment {
+  readonly filename: string;
+  readonly content: string;
+  readonly contentType: string;
+}
+
 export interface MailMessage {
   readonly to: string;
   readonly subject: string;
   readonly text: string;
+  readonly attachments?: readonly MailAttachment[];
 }
 
 /** Sends transactional email. Implementations must never log message bodies in production. */
@@ -22,7 +29,8 @@ export class LogMailer implements Mailer {
   private readonly logger = new Logger('Mail');
 
   async send(message: MailMessage): Promise<void> {
-    this.logger.log(`To: ${message.to} | ${message.subject}\n${message.text}`);
+    const files = message.attachments?.length ? `\n[attachments: ${message.attachments.map((a) => a.filename).join(', ')}]` : '';
+    this.logger.log(`To: ${message.to} | ${message.subject}\n${message.text}${files}`);
   }
 }
 
@@ -46,7 +54,13 @@ export class SmtpMailer implements Mailer {
   }
 
   async send(message: MailMessage): Promise<void> {
-    await this.transporter.sendMail({ from: this.from, to: message.to, subject: message.subject, text: message.text });
+    await this.transporter.sendMail({
+      from: this.from,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      ...(message.attachments ? { attachments: message.attachments.map((a) => ({ ...a })) } : {}),
+    });
   }
 }
 

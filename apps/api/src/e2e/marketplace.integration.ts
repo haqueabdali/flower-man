@@ -742,3 +742,36 @@ describe('courier tips', () => {
     assert.deepEqual(entries.rows.map((r) => [r.type, r.amount_minor]), [['COURIER_TIP', 300], ['DELIVERY_FEE', 590]]);
   });
 });
+
+describe('receipts and personal data export', () => {
+  it('emails the order summary once paid and on request, and a JSON copy of the user data', async () => {
+    const mailbox = app.get<MemoryMailer>(MAILER);
+    const roses = await shop.user.post<Product>('/seller/products', { name: 'Receipt roses', category: 'ROSES', priceMinor: 2500 }, 201);
+    const buyer = await signUp('receipt');
+    const email = (await buyer.get<{ user: { email: string } }>('/auth/me')).user.email;
+    const inbox = () => mailbox.sent.filter((m) => m.to === email);
+    await buyer.put('/cart/items', { productId: roses.id, quantity: 2 });
+    const checkout = await buyer.post<CheckoutResponse>('/checkout', {
+      recipientName: 'Nina', recipientPhone: '+393331234567', deliveryAddress: 'Via Tasso 9, Bergamo', deliveryLocation: BERGAMO_CENTRE, tipMinor: 200,
+    }, 201);
+    await buyer.post(`/orders/${checkout.order.id}/receipt`, {}, 404); // not paid yet
+    await pay(checkout);
+    const receipt = inbox().find((m) => m.subject.includes(`#${checkout.order.orderNumber}`));
+    assert.ok(receipt, 'receipt sent after payment');
+    assert.match(receipt.subject, /riepilogo/);
+    assert.match(receipt.text, /2 × Receipt roses {2}50,00 €/);
+    assert.match(receipt.text, /Mancia al corriere: 2,00 €/);
+    assert.match(receipt.text, /Totale pagato: 57,90 €/);
+    await buyer.post(`/orders/${checkout.order.id}/receipt`, {}, 202);
+    await (await signUp('other-receipt')).post(`/orders/${checkout.order.id}/receipt`, {}, 404);
+
+    await buyer.post('/me/data-export', {}, 202);
+    await buyer.post('/me/data-export', {}, 409); // once per hour
+    const exported = inbox().find((m) => m.attachments?.length);
+    const data = JSON.parse(exported?.attachments?.[0]?.content ?? '{}') as { account: { email: string }; orders: { order_number: string }[] };
+    assert.equal(data.account.email, email);
+    assert.equal(data.orders.length, 1);
+    assert.equal(JSON.stringify(data).includes('password'), false);
+    await (await signUp('unverified', false)).post('/me/data-export', {}, 409);
+  });
+});

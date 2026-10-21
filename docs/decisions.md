@@ -399,3 +399,13 @@ Never rewrite an accepted decision: add a new one that supersedes it.
   next to the delivery fee (same once-only guarantee). Couriers see the tip on offered jobs.
 - Discounts never apply to the tip. Sales analytics exclude tips from revenue.
 - A refund after delivery is still charged back to the seller only up to their earnings; the courier keeps the tip.
+
+## ADR-027: Order summary emails and personal data export
+
+- After payment the customer receives an order summary by email, in their language (`receipts.service.ts`); the app can
+  send it again (`POST /orders/:id/receipt`). It states that it is not a tax document: receipts/invoices come from the
+  florist.
+- GDPR access and portability: `POST /me/data-export` emails a JSON copy of the user's personal data (account, orders,
+  custom requests, reviews, favourites, partner accounts, notifications, 12 months of sign-in history, devices) to their own
+  verified address, at most once per hour (`users.data_export_requested_at`, migration 0021). No password hashes, tokens or
+  other users' data. Both apps have the button in the account screen. The mailer now supports attachments.

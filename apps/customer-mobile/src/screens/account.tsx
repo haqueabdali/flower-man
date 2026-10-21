@@ -37,6 +37,7 @@ export function AccountScreen({ user, onSignedOut }: { user: AuthUser; onSignedO
       </Card>
       {privacy && <Button kind="secondary" title={t('accountPrivacy')} onPress={() => void Linking.openURL(privacy)} />}
       {terms && <Button kind="secondary" title={t('accountTerms')} onPress={() => void Linking.openURL(terms)} />}
+      <Button kind="secondary" title={t('accountExport')} onPress={() => attempt(async () => { await api.request('me/data-export', { method: 'POST' }); Alert.alert(t('appName'), t('accountExportSent')); })} />
       <Button kind="secondary" title={t('accountSignOut')} onPress={() => attempt(async () => { await api.signOut(); onSignedOut(); })} />
       <Button
         kind="danger"
