@@ -127,7 +127,7 @@ Delivery fees (€5.90 default) and tips are collected and paid in full to couri
 ## 11. Operational plan
 
 - **Florist onboarding:** application in the partner app → verification by admin → catalogue and opening hours → go live.
-- **Courier model:** self-employed couriers verified in the app [confirm legal model with a labour consultant: *prestazione occasionale* / self-employed with VAT / employment]. Accident insurance required.
+- **Courier model:** from 2 December 2026, Italy's decree transposing EU Directive 2024/2831 on platform work presumes platform workers are employees [verify decree reference]. The current model (self-employed couriers paid per delivery) must be redesigned before launch with a labour consultant: employment (part-time contracts), a licensed delivery partner, or genuinely autonomous contracts that rebut the presumption. Accident insurance required. Higher courier costs are not yet in the financial model.
 - **Customer service:** in-app help desk with an admin inbox; refunds handled in the admin panel.
 - **Payments:** Stripe; payouts to partners by bank transfer with monthly statements.
 - **Compliance:**
@@ -187,7 +187,7 @@ About **€300,000 for 2027–2028**. The model's peak cumulative need is about 
 | Not enough florists join | free to join; florist sets prices; pilot with 10–15 shops before launch |
 | Weak demand / high acquisition cost | florists co-promote; peak-date campaigns; reminders for repeat orders |
 | Courier supply at peaks | flexible pool; peak bonuses; requested-time slots spread demand |
-| Courier employment rules | legal review before launch; insurance |
+| Courier employment rules (platform-work decree, from 2 Dec 2026) | redesign the courier model with a labour consultant before launch; update the financial model with employment costs; insurance |
 | Thin margins | commission step-up per zone; featured placement; basket growth |
 | Innovation status challenged | registered software; technology-focused business purpose; documented R&D |
 | Competitors copy | speed of local supply acquisition; partner loyalty |
