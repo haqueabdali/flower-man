@@ -17,7 +17,7 @@ Flower Man è una piattaforma italiana, già sviluppata e collaudata, che offre 
 
 Si parte dai fioristi, un settore di prossimità con forti picchi stagionali.
 
-Proponiamo una **sperimentazione di 12 mesi in un Municipio di Milano** (in alternativa nel Comune di Bergamo), in collaborazione con il Comune e la Camera di Commercio, con quattro obiettivi misurabili:
+Proponiamo una **sperimentazione di 12 mesi nel Comune di Bergamo**, città di lancio di Flower Man, in collaborazione con il Comune, il Distretto urbano del commercio e la Camera di Commercio di Bergamo, con quattro obiettivi misurabili:
 1. **più vendite regolari** per i negozi del quartiere;
 2. **digitalizzazione** delle botteghe tradizionali;
 3. **un percorso volontario di regolarizzazione** per i venditori indipendenti che vendono in modo abituale senza partita IVA;
@@ -33,7 +33,7 @@ La quota pubblica rientra in due o tre anni. I risultati saranno misurati da un 
 
 ## 2. Il problema
 
-- **Desertificazione commerciale:** la Regione Lombardia ha stanziato **63 milioni di euro** nel 2026 per i Distretti del Commercio, con l'obiettivo dichiarato di contrastare la chiusura dei negozi di vicinato. Il Comune di Milano e la Camera di Commercio di Milano Monza Brianza Lodi sostengono con **4 milioni di euro** i "Negozi e Botteghe di Quartiere" fuori dalla circonvallazione esterna.
+- **Desertificazione commerciale:** la Regione Lombardia ha stanziato **63 milioni di euro** nel 2026 per i Distretti del Commercio, con l'obiettivo dichiarato di contrastare la chiusura dei negozi di vicinato. In provincia di Bergamo il bando regionale 2026 coinvolge 31 distretti e 169 comuni, con progetti da realizzare entro il 2030. Il Comune di Bergamo ha definito con le associazioni di categoria e il Distretto urbano del commercio i criteri dei propri contributi 2026 ai negozi.
 - **Economia sommersa:** secondo l'ISTAT, nel 2023 le unità di lavoro irregolari erano **3,13 milioni**. Il tasso di irregolarità nel commercio, trasporti, alloggio e ristorazione era del **15,0%**, e l'economia non osservata superava i **217 miliardi** di euro (10,2% del PIL).
 - **Barriere alla regolarizzazione dei micro-venditori:** un commerciante iscritto all'INPS versa almeno **€4.611,64** l'anno di contributi (circolare INPS 14/2026), circa €3.000 con la riduzione del 35% per i forfettari. Per chi fattura poco, regolarizzarsi conviene solo se porta più clienti.
 - **Lavoro di consegna:** dal **2 dicembre 2026** il decreto di recepimento della Direttiva (UE) 2024/2831 estende ai lavoratori delle piattaforme la presunzione di lavoro subordinato [da verificare: estremi del decreto]. Servono modelli di consegna locale regolari e sostenibili.
@@ -44,7 +44,7 @@ La quota pubblica rientra in due o tre anni. I risultati saranno misurati da un 
 - app clienti (Android e iOS) con ricerca dei negozi vicini, fasce orarie di consegna, pagamento digitale, stato dell'ordine in tempo reale, foto di consegna, recensioni;
 - app partner per negozi, venditori indipendenti e corrieri: gestione ordini, catalogo e scorte, orari, incassi e rendiconti mensili;
 - verifica dei partner da parte del team Flower Man; registro contabile di ogni transazione; dati e registro delle attività conformi al GDPR;
-- zone geografiche configurabili: un distretto o un Municipio si attiva senza modifiche al software.
+- zone geografiche configurabili: un distretto o un quartiere si attiva senza modifiche al software.
 
 **Da sviluppare per la sperimentazione** [da sviluppare]:
 1. **Percorso "Mettiti in regola"** per i venditori indipendenti: spiega in modo semplice le possibilità (attività occasionale, apertura della partita IVA, regime forfettario, SCIA tramite SUAP, vendita diretta agricola ai sensi dell'art. 4 del D.Lgs. 228/2001) e indirizza allo sportello della Camera di Commercio. Non comporta segnalazioni né sanzioni.
@@ -61,7 +61,7 @@ Metodo:
 - l'IVA è calcolata solo sulla quota di consumi realmente nuova;
 - non si applicano moltiplicatori.
 
-| Ipotesi (12 mesi, un Municipio) | Valore |
+| Ipotesi (12 mesi, Comune di Bergamo) | Valore |
 |---|---|
 | Negozi aderenti | 40 |
 | Venditori indipendenti | 20, di cui 8 nuove attività registrate grazie al programma |
@@ -101,20 +101,25 @@ Metodo:
 | Dati sul commercio locale | cruscotto aggregato e anonimo |
 | Politica pubblica visibile | iniziativa misurabile per il quartiere, a basso costo |
 
-## 7. Progetto pilota — Milano, un Municipio esterno alla circonvallazione
+## 7. Progetto pilota — Comune di Bergamo
 
-**Perché lì:** coincide con l'area del bando "Negozi e Botteghe di Quartiere", dove il Comune sta già investendo. In alternativa si può partire dal Comune di Bergamo, città di lancio commerciale di Flower Man.
+**Perché Bergamo:**
+- è la città di lancio commerciale di Flower Man: negozi, corrieri e servizio sono già operativi sul territorio, quindi il pilota parte su un'attività reale;
+- il Comune ha un Distretto urbano del commercio attivo, che collabora con le associazioni di categoria;
+- la dimensione della città consente di coinvolgere una quota significativa dei negozi e di misurare bene i risultati.
+
+Area: tutta la città, a partire dai quartieri con più negozi di vicinato (Città Alta, centro, Borgo Palazzo, Borgo Santa Caterina e gli altri quartieri), con possibile estensione ai comuni della prima cintura.
 
 **Partner proposti:**
-- Comune di Milano (assessorato al Commercio e Municipio);
-- Camera di Commercio di Milano Monza Brianza Lodi (sportello per la regolarizzazione);
+- Comune di Bergamo (assessorato al Commercio) e Distretto urbano del commercio;
+- Camera di Commercio di Bergamo (sportello per la regolarizzazione);
 - associazioni di categoria del commercio e dei fioristi;
-- un'università lombarda come valutatore indipendente.
+- Università degli Studi di Bergamo come valutatore indipendente (da proporre).
 
 | Fase | Mesi | Attività |
 |---|---|---|
 | 0. Preparazione | 1–2 | protocollo d'intesa; valutazione d'impatto privacy (DPIA); sviluppo del percorso "Mettiti in regola" e del cruscotto; modello corrieri conforme verificato da un consulente del lavoro |
-| 1. Adesione | 2–4 | visita ai negozi del Municipio; incontri con i venditori indipendenti presso associazioni e Camera di Commercio; selezione dei corrieri |
+| 1. Adesione | 2–4 | visita ai negozi della città; incontri con i venditori indipendenti presso associazioni e Camera di Commercio; selezione dei corrieri |
 | 2. Operatività | 4–12 | vendite e consegne; campagne di quartiere nelle date di picco (14 febbraio, 8 marzo, festa della mamma); sportello di regolarizzazione |
 | 3. Valutazione | 6 e 12 | rapporto intermedio e finale del valutatore indipendente; decisione di estensione |
 
@@ -153,7 +158,7 @@ La quota pubblica può arrivare da risorse comunali per il commercio, da progett
 
 ## 8. Scalabilità
 
-- **Lombardia:** altri Municipi e Distretti del Commercio, poi Bergamo, Brescia, Monza, Como.
+- **Lombardia:** altri Distretti del Commercio della provincia di Bergamo, poi Brescia, Milano, Monza, Como.
 - **Settori:** dai fioristi ad altri negozi di vicinato, poi produttori agricoli locali con vendita diretta, artigiani, economia circolare.
 - **Italia:** il modello per zone geografiche consente di aprire nuove città senza modifiche al software.
 
@@ -169,7 +174,7 @@ La quota pubblica può arrivare da risorse comunali per il commercio, da progett
 
 ### English summary
 
-Flower Man proposes a 12-month pilot in one Milan borough (or Bergamo) with the Comune and the Chamber of Commerce. The pilot helps neighbourhood shops sell and deliver online, offers independent sellers a voluntary path to register, and creates compliant delivery jobs.
+Flower Man proposes a 12-month pilot in the city of Bergamo, its launch city, with the Comune, the city shopping district and the Bergamo Chamber of Commerce. The pilot helps neighbourhood shops sell and deliver online, offers independent sellers a voluntary path to register, and creates compliant delivery jobs.
 - **Cost:** €160,000, of which 40% is paid by Flower Man and 60% by public partners or dedicated funds.
 - **Conservative estimate of additional public revenue:** about €48,500 in year 1, then about €42,000 a year.
 - **KPIs:** measured by an independent evaluator.

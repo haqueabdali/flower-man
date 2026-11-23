@@ -2,7 +2,7 @@
 
 Prepared 23 November 2026. Companion files:
 - `07-impact-model.xlsx`: public revenue model;
-- `08-proposta-istituzionale-it.md`: institutional proposal and Milan pilot, in Italian;
+- `08-proposta-istituzionale-it.md`: institutional proposal and Bergamo pilot, in Italian;
 - `09-one-pager-e-email-it.md`: one-page brief for municipalities and outreach emails;
 - `10-presentazione-istituzionale.pptx`: presentation for institutions.
 
@@ -21,6 +21,7 @@ Nothing here implies that any institution is interested or has committed. That h
 1. **The best entry point is neighbourhood shops, not "informal sellers".** Italian municipalities and Regione Lombardia are already spending to keep local shops alive:
    - Lombardy put **€63 million** into its *Distretti del Commercio* (shopping-district) programme in 2026;
    - Milan's **€4 million** *Negozi e Botteghe di Quartiere* grant (neighbourhood shops and workshops) is open until March 2027.
+   - In Bergamo province, the 2026 district call covers 31 districts and 169 municipalities, with projects running to 2030. The city of Bergamo's 2026 shop grants were designed with the trade associations and its *Distretto urbano del commercio*.
 
    Flower Man already gives a local shop online sales, payments and same-day delivery. That matches a policy goal that already has budgets.
 2. **Formalisation is a real but secondary pillar, and it must be voluntary.** It is not a crackdown.
@@ -28,7 +29,7 @@ Nothing here implies that any institution is interested or has committed. That h
    - We have no data on how many flower sellers are unregistered, and many independent sellers are legitimately registered or legally exempt (see §2).
    - The platform can make registering easier and worthwhile. It must never become a tool that penalises vulnerable people.
 3. **Delivery work is your biggest risk and your strongest public argument.** The decree transposing EU Directive 2024/2831 on platform work extends to all platform workers the presumption that they are employees, from **2 December 2026** [Verify decree number and text]. Flower Man's current courier model (self-employed couriers paid per delivery) must be redesigned before launch. A compliant-by-design local courier model is exactly what the Ministry of Labour wants to see.
-4. **Honest numbers.** [Estimate] A 12-month pilot in one Milan *Municipio* (borough) would generate about **€48k** of additional public revenue in year one and about **€42k a year** afterwards, if registrations and jobs persist. That pays back the public share (€96k) in two to three years. At regional scale (8 cities by 2031) the estimate is about **€1.2M a year** (§3). These are modest, defensible numbers. Inflated claims would damage credibility with public officials.
+4. **Honest numbers.** [Estimate] A 12-month pilot in the city of Bergamo would generate about **€48k** of additional public revenue in year one and about **€42k a year** afterwards, if registrations and jobs persist. That pays back the public share (€96k) in two to three years. At regional scale (8 cities by 2031) the estimate is about **€1.2M a year** (§3). These are modest, defensible numbers. Inflated claims would damage credibility with public officials.
 
 ---
 
@@ -88,7 +89,7 @@ Method (full detail in `07-impact-model.xlsx`, sheet *Read me*):
 - no VAT (*forfettari* do not charge it);
 - **total about €3,250 a year**, most of it building the seller's own pension.
 
-**12-month pilot in one Municipio** [Estimate]:
+**12-month pilot in the city of Bergamo** [Estimate]:
 
 | Input | Value |
 |---|---|
@@ -159,7 +160,7 @@ Food (restaurants, prepared food) is excluded for now: hygiene rules and very st
 - **Regional development programmes / EU funds** (ERDF, ESF+): reach you through regional calls or through partners (Comuni, training bodies).
 - **Private investment:** angels and VC, still needed (`00-funding-strategy.md`).
 
-**Strongest approach: a no-cost *protocollo d'intesa* (pilot agreement) with one Comune and its Camera di Commercio, using company funds plus Smart&Start money for the pilot. Then use the measured results to win district funding and small service contracts.**
+**Strongest approach: a no-cost *protocollo d'intesa* (pilot agreement) with the Comune di Bergamo, its *Distretto urbano del commercio* and the Camera di Commercio di Bergamo, using company funds plus Smart&Start money for the pilot. Then use the measured results to win district funding and small service contracts.**
 
 ## 6. Phase 8 — Making it profitable without depending on government
 
@@ -207,7 +208,7 @@ Rule: public money funds **set-up and measurement**, never the running cost of t
 **Conditions before approaching any institution:**
 1. Incorporate the company.
 2. Redesign the courier model for the 2026 platform-work decree (labour lawyer).
-3. Run the first commercial weeks in Bergamo, so you arrive with real data.
+3. Run the first commercial weeks in Bergamo, so you arrive at the pilot meeting with real data. The pilot is in Bergamo because it is the launch city: operations are already there, and the city is small enough to measure results well. Milan follows as a scale-up.
 4. Prepare the GDPR impact assessment (DPIA) for the dashboard.
 
 ## 9. Sources
@@ -219,6 +220,7 @@ Rule: public money funds **set-up and measurement**, never the running cost of t
 - VAT on flowers: [Agenzia Entrate ruling 523/2022 summary](https://www.studiocerbone.com/?p=469463) · [Tabella A text](https://www.fiscoetasse.com/index.php/files/4798/dpr-633-1972-tabella-a.pdf)
 - Opening a flower shop (SCIA): [SumUp guide](https://www.sumup.com/it-it/aprire-attivita/aprire-negozio-fiori/) (secondary)
 - [Lombardy — Bando Distretti del Commercio 2026](https://www.bandi.regione.lombardia.it/servizi/servizio/bandi/dettaglio/attivita-produttive-commercio/sostegno-attivita-imprenditoriali/bando-favore-distretti-commercio-2026-RLO12026052348) · [ANCI Lombardia](https://anci.lombardia.it/dettaglio-circolari/20263201454-regione-lombardia-al-via-il-bando-2026-per-i-distretti-del-commercio-stanziati-63-milioni-di-euro/) · [Finlombarda](https://www.finlombarda.it/prodotti-e-servizi/prodotti-servizi/177/bando-distretti-del-commercio-2026)
+- [Comune di Bergamo — 2026 shop security grants](https://www.comune.bergamo.it/notizie/sicurezza-urbana:-60mila-euro-di-contributi-a-fondo-perduto-per-le-attivit%C3%A0-commerciali-pubblicato-il-bando) · [Bergamonews — Treviglio district grants](https://www.bergamonews.it/2026/10/22/treviglio-170mila-euro-per-i-negozi-contributi-fino-a-5mila-euro-per-chi-investe/931031) · [Bergamo Tomorrow](https://www.bergamotomorrow.it/2026/07/13/bergamo-sostiene-i-negozi-60mila-euro-per-rafforzare-la-sicurezza/)
 - [Milan — Negozi e Botteghe di Quartiere (CCIAA MiMBL)](https://www.milomb.camcom.it/negozi-e-botteghe-di-quartiere) · [MiTomorrow](https://www.mitomorrow.it/cambiamilano/bando-negozi-e-botteghe-di-milano-2026/) · [MilanoToday](https://www.milanotoday.it/economia/negozi-quartiere-iniziative-valorizzazione.html)
 - Platform-work decree: [money.it](https://www.money.it/decreto-piattaforme-digitali-2026-presunzione-subordinazione-rider) · [PMI.it](https://www.pmi.it/economia/lavoro/475800/lavoro-piattaforme-digitali-decreto-recepimento.html) · [Bollettino ADAPT](https://www.bollettinoadapt.it/lavoro-mediante-piattaforma-digitale-uno-schema-di-decreto-carente-sul-ruolo-della-contrattazione-collettiva/)
 - PPP and innovation procurement: [Studio Moscarini — PPP in D.Lgs. 36/2023](https://www.studiomoscarini.it/2026/06/12/partenariato-pubblico-privato-ppp-dlgs-36-2023/) · [Altalex — pre-commercial procurement](https://www.altalex.com/documents/news/2026/03/25/appalti-pre-commerciali-partenariato-innovazione)

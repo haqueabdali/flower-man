@@ -1,6 +1,6 @@
 # Flower Man — Scheda di una pagina per i Comuni e email di contatto
 
-## Scheda di una pagina (per assessorati al Commercio e Municipi)
+## Scheda di una pagina (per l'assessorato al Commercio del Comune di Bergamo e il Distretto urbano del commercio)
 
 **Flower Man — il negozio di quartiere, online e con consegna in giornata**
 
@@ -14,9 +14,9 @@
 - vetrina online, pagamenti digitali tracciati, consegna in giornata con foto di consegna;
 - si parte dai fioristi.
 
-**La proposta al Comune:** una sperimentazione di 12 mesi in un quartiere, con:
+**La proposta al Comune di Bergamo:** una sperimentazione di 12 mesi in città, con:
 1. adesione gratuita dei negozi (commissione solo sulle vendite effettive);
-2. percorso volontario "Mettiti in regola" per i venditori indipendenti, con lo sportello della Camera di Commercio;
+2. percorso volontario "Mettiti in regola" per i venditori indipendenti, con lo sportello della Camera di Commercio di Bergamo;
 3. lavoro di consegna regolare, conforme alla disciplina sulle piattaforme;
 4. cruscotto con dati aggregati e anonimi per il Comune.
 
@@ -35,7 +35,7 @@ Contatti: [nome, ruolo, telefono, email, sito]
 
 ---
 
-## Email 1 — Assessorato al Commercio (Comune di Milano o di Bergamo)
+## Email 1 — Assessorato al Commercio, Comune di Bergamo
 
 **Oggetto:** Proposta di sperimentazione per il commercio di vicinato — piattaforma Flower Man
 
@@ -43,7 +43,7 @@ Gentile Assessore / Gentile Dirigente,
 
 sono [nome], co-fondatore di Flower Man, giovane impresa lombarda che ha sviluppato una piattaforma digitale per i negozi di vicinato: vetrina online, pagamenti tracciati e consegna in giornata con corrieri della piattaforma. Partiamo dai fioristi.
 
-Abbiamo seguito con interesse le iniziative del Comune a sostegno dei negozi di quartiere e vorremmo proporre una sperimentazione di 12 mesi in un Municipio, con obiettivi misurabili:
+Abbiamo seguito con interesse le iniziative del Comune e del Distretto urbano del commercio a sostegno dei negozi della città. Bergamo è la nostra città di lancio, e vorremmo proporre una sperimentazione di 12 mesi con obiettivi misurabili:
 - più vendite per i negozi aderenti;
 - un percorso volontario di regolarizzazione per i venditori indipendenti, in collaborazione con la Camera di Commercio;
 - lavoro di consegna regolare.
@@ -55,7 +55,7 @@ Allego una scheda di una pagina e resto a disposizione per un incontro di 30 min
 Cordiali saluti,
 [nome] · [ruolo] · Flower Man [forma societaria] · [telefono] · [email]
 
-## Email 2 — Camera di Commercio (servizio nuove imprese / sportello)
+## Email 2 — Camera di Commercio di Bergamo (servizio nuove imprese)
 
 **Oggetto:** Collaborazione su un percorso di regolarizzazione volontaria per piccoli venditori
 
